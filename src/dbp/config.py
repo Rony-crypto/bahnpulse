@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
 RAW_S1 = DATA / "raw" / "s1"
 RAW_S3 = DATA / "raw" / "s3"
+RAW_S2 = DATA / "raw" / "s2"
 CONFIG = ROOT / "config"
 DOCS = ROOT / "docs"
 

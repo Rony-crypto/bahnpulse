@@ -1,6 +1,6 @@
 import pytest
 
-from dbp.ingest.download_s1 import file_name, file_url, months_between
+from dbp.ingest.download_s1 import file_name, file_url, months_between, months_in_listing
 
 
 def test_months_between_crosses_year():
@@ -24,3 +24,13 @@ def test_file_name_and_url():
 def test_file_name_rejects_invalid_month():
     with pytest.raises(ValueError):
         file_name("2026-13")
+
+
+def test_months_in_listing_keeps_only_monthly_files_sorted():
+    paths = [
+        "monthly_processed_data/data-2026-09.parquet",
+        "monthly_processed_data/README.md",
+        "monthly_processed_data/data-2025-11.parquet",
+        "monthly_processed_data/data-2026-08.parquet",
+    ]
+    assert months_in_listing(paths) == ["2025-11", "2026-08", "2026-09"]

@@ -1,42 +1,42 @@
 # Hubs for the 15-minute collector (FR-03, FR-04).
 # At least one per federal state + extra Hamburg stations for the Hamburg deep dive.
-# eva: fill with `uv run python -m dbp.ingest.find_eva` (week 1/2). Never guess EVA numbers.
+# eva: looked up with `uv run python -m dbp.ingest.find_eva` (exact name matches). Never guess EVA numbers.
 
 hubs:
   # Hamburg deep dive
-  - {name: "Hamburg Hbf", state: "Hamburg", eva: null}
-  - {name: "Hamburg Dammtor", state: "Hamburg", eva: null}
-  - {name: "Hamburg-Altona", state: "Hamburg", eva: null}
-  - {name: "Hamburg-Harburg", state: "Hamburg", eva: null}
-  - {name: "Hamburg-Bergedorf", state: "Hamburg", eva: null}
-  - {name: "Hamburg-Barmbek", state: "Hamburg", eva: null}
+  - {name: "Hamburg Hbf", state: "Hamburg", eva: "8002549"}
+  - {name: "Hamburg Dammtor", state: "Hamburg", eva: "8002548"}
+  - {name: "Hamburg-Altona", state: "Hamburg", eva: "8002553"}
+  - {name: "Hamburg-Harburg", state: "Hamburg", eva: "8000147"}
+  - {name: "Hamburg-Bergedorf", state: "Hamburg", eva: "8002554"}
+  - {name: "Hamburg-Barmbek", state: "Hamburg", eva: "8000805"}
   # One or more per federal state
-  - {name: "Berlin Hbf", state: "Berlin", eva: null}
-  - {name: "Berlin Ostkreuz", state: "Berlin", eva: null}
-  - {name: "München Hbf", state: "Bayern", eva: null}
-  - {name: "Nürnberg Hbf", state: "Bayern", eva: null}
-  - {name: "Stuttgart Hbf", state: "Baden-Württemberg", eva: null}
-  - {name: "Mannheim Hbf", state: "Baden-Württemberg", eva: null}
-  - {name: "Frankfurt(Main)Hbf", state: "Hessen", eva: null}
-  - {name: "Köln Hbf", state: "Nordrhein-Westfalen", eva: null}
-  - {name: "Düsseldorf Hbf", state: "Nordrhein-Westfalen", eva: null}
-  - {name: "Dortmund Hbf", state: "Nordrhein-Westfalen", eva: null}
-  - {name: "Essen Hbf", state: "Nordrhein-Westfalen", eva: null}
-  - {name: "Hannover Hbf", state: "Niedersachsen", eva: null}
-  - {name: "Bremen Hbf", state: "Bremen", eva: null}
-  - {name: "Leipzig Hbf", state: "Sachsen", eva: null}
-  - {name: "Dresden Hbf", state: "Sachsen", eva: null}
-  - {name: "Erfurt Hbf", state: "Thüringen", eva: null}
-  - {name: "Magdeburg Hbf", state: "Sachsen-Anhalt", eva: null}
-  - {name: "Halle(Saale)Hbf", state: "Sachsen-Anhalt", eva: null}
-  - {name: "Potsdam Hbf", state: "Brandenburg", eva: null}
-  - {name: "Schwerin Hbf", state: "Mecklenburg-Vorpommern", eva: null}
-  - {name: "Rostock Hbf", state: "Mecklenburg-Vorpommern", eva: null}
-  - {name: "Kiel Hbf", state: "Schleswig-Holstein", eva: null}
-  - {name: "Lübeck Hbf", state: "Schleswig-Holstein", eva: null}
-  - {name: "Mainz Hbf", state: "Rheinland-Pfalz", eva: null}
-  - {name: "Koblenz Hbf", state: "Rheinland-Pfalz", eva: null}
-  - {name: "Saarbrücken Hbf", state: "Saarland", eva: null}
-  - {name: "Wiesbaden Hbf", state: "Hessen", eva: null}
-  - {name: "Karlsruhe Hbf", state: "Baden-Württemberg", eva: null}
-  - {name: "Würzburg Hbf", state: "Bayern", eva: null}
+  - {name: "Berlin Hbf", state: "Berlin", eva: "8098160"}
+  - {name: "Berlin Ostkreuz", state: "Berlin", eva: "8011162"}
+  - {name: "München Hbf", state: "Bayern", eva: "8000261"}
+  - {name: "Nürnberg Hbf", state: "Bayern", eva: "8000284"}
+  - {name: "Stuttgart Hbf", state: "Baden-Württemberg", eva: "8000096"}
+  - {name: "Mannheim Hbf", state: "Baden-Württemberg", eva: "8000244"}
+  - {name: "Frankfurt(Main)Hbf", state: "Hessen", eva: "8000105"}
+  - {name: "Köln Hbf", state: "Nordrhein-Westfalen", eva: "8000207"}
+  - {name: "Düsseldorf Hbf", state: "Nordrhein-Westfalen", eva: "8000085"}
+  - {name: "Dortmund Hbf", state: "Nordrhein-Westfalen", eva: "8000080"}
+  - {name: "Essen Hbf", state: "Nordrhein-Westfalen", eva: "8000098"}
+  - {name: "Hannover Hbf", state: "Niedersachsen", eva: "8000152"}
+  - {name: "Bremen Hbf", state: "Bremen", eva: "8000050"}
+  - {name: "Leipzig Hbf", state: "Sachsen", eva: "8010205"}
+  - {name: "Dresden Hbf", state: "Sachsen", eva: "8010085"}
+  - {name: "Erfurt Hbf", state: "Thüringen", eva: "8010101"}
+  - {name: "Magdeburg Hbf", state: "Sachsen-Anhalt", eva: "8010224"}
+  - {name: "Halle(Saale)Hbf", state: "Sachsen-Anhalt", eva: "8010159"}
+  - {name: "Potsdam Hbf", state: "Brandenburg", eva: "8012666"}
+  - {name: "Schwerin Hbf", state: "Mecklenburg-Vorpommern", eva: "8010324"}
+  - {name: "Rostock Hbf", state: "Mecklenburg-Vorpommern", eva: "8010304"}
+  - {name: "Kiel Hbf", state: "Schleswig-Holstein", eva: "8000199"}
+  - {name: "Lübeck Hbf", state: "Schleswig-Holstein", eva: "8000237"}
+  - {name: "Mainz Hbf", state: "Rheinland-Pfalz", eva: "8000240"}
+  - {name: "Koblenz Hbf", state: "Rheinland-Pfalz", eva: "8000206"}
+  - {name: "Saarbrücken Hbf", state: "Saarland", eva: "8000323"}
+  - {name: "Wiesbaden Hbf", state: "Hessen", eva: "8000250"}
+  - {name: "Karlsruhe Hbf", state: "Baden-Württemberg", eva: "8000191"}
+  - {name: "Würzburg Hbf", state: "Bayern", eva: "8000260"}

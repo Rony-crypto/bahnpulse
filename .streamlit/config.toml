@@ -1,0 +1,45 @@
+# Shared look; [theme.light] and [theme.dark] add the colors for each mode. Viewers switch
+# between them in the app menu (⋮ → Settings → Light / Dark / System).
+[theme]
+primaryColor = "#EC0016"
+linkColor = "#1455C0"
+font = "Helvetica Neue, Helvetica, Arial, sans-serif"
+headingFont = "Helvetica Neue, Helvetica, Arial, sans-serif"
+headingFontWeights = 700
+baseRadius = "4px"
+redColor = "#EC0016"
+orangeColor = "#F39200"
+yellowColor = "#FFD800"
+blueColor = "#1455C0"
+greenColor = "#408335"
+violetColor = "#814997"
+grayColor = "#646973"
+chartCategoricalColors = ["#EC0016", "#1455C0", "#309FD1", "#814997", "#408335", "#878C96"]
+chartSequentialColors = ["#FDE3E4", "#FBC4C7", "#F9A3A8", "#F7787F", "#F4545E", "#EC0016", "#C50014", "#9B000E", "#740009", "#5E0008"]
+
+[theme.light]
+backgroundColor = "#F5F6F8"
+secondaryBackgroundColor = "#F0F3F5"
+textColor = "#282D37"
+borderColor = "#D7DCE1"
+
+[theme.light.sidebar]
+backgroundColor = "#FFFFFF"
+
+# Dark mode uses DB's cool slate grays rather than near-black.
+[theme.dark]
+primaryColor = "#FF3B4A"
+linkColor = "#73AEF0"
+backgroundColor = "#232832"
+secondaryBackgroundColor = "#323844"
+textColor = "#F0F3F5"
+borderColor = "#434956"
+grayColor = "#AFB4BB"
+blueColor = "#73AEF0"
+chartCategoricalColors = ["#FF3B4A", "#73AEF0", "#55B9E6", "#B286C4", "#66A558", "#AFB4BB"]
+
+[theme.dark.sidebar]
+backgroundColor = "#2A2F3A"
+
+[client]
+toolbarMode = "viewer"

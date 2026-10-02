@@ -1,0 +1,1 @@
+"""Publish aggregate data products for dashboard consumers."""

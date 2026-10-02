@@ -1,0 +1,32 @@
+name: bahnpulse
+version: "1.0.0"
+config-version: 2
+profile: bahnpulse
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  s1_parquet_glob: "data/raw/s1/data-*.parquet"
+  station_state_map: "data/raw/s3/station_state_map.csv"
+
+models:
+  bahnpulse:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+
+seeds:
+  bahnpulse:
+    +schema: reference
+    +quote_columns: false

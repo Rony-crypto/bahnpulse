@@ -60,9 +60,12 @@ def get(url: str, accept: str = "application/json") -> requests.Response:
     return r
 
 
-def stada_stations(searchstring: str) -> dict:
-    """StaDa station search, e.g. 'Hamburg Hbf' or 'Hamburg*'."""
-    return get(f"{STADA}/stations?searchstring={requests.utils.quote(searchstring)}").json()
+def stada_stations(searchstring: str, offset: int = 0, limit: int = 10_000) -> dict:
+    """StaDa station search, e.g. 'Hamburg Hbf' or '*' for all stations."""
+    params = requests.compat.urlencode(
+        {"searchstring": searchstring, "offset": offset, "limit": limit}
+    )
+    return get(f"{STADA}/stations?{params}").json()
 
 
 def timetables_station(pattern: str) -> str:

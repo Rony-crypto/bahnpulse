@@ -4,7 +4,8 @@ Germany-wide Deutsche Bahn punctuality: monthly history for all stations, a 15-m
 for ~35 hubs, a tested dbt model, a public Streamlit app with a state map and a Hamburg deep dive,
 and an AI layer that answers questions in English or German with validated SQL.
 
-> Status: **week 1 of 6** (data foundation). Built in public; see the roadmap below.
+> Current slice: tested historical marts and a local Streamlit dashboard. See the roadmap below
+> for collector and AI milestones.
 
 ## Questions this project answers
 
@@ -31,8 +32,12 @@ git clone https://github.com/<your-user>/bahnpulse.git
 cd bahnpulse
 uv sync
 cp .env.example .env   # add your DB API Marketplace keys
-uv run python -m dbp.ingest.download_s1 --start 2026-06 --end 2026-08
+uv run python -m dbp.ingest.download_s1 --start 2025-11 --end latest
+uv run python -m dbp.ingest.download_s3
 uv run python -m dbp.profile.profile_s1
+uv run dbt build --project-dir dbt --profiles-dir dbt
+uv run python -m dbp.publish.export_marts
+uv run streamlit run src/dbp/app.py
 ```
 
 Other week-1 scripts:
@@ -40,7 +45,11 @@ Other week-1 scripts:
 | Command | What it does |
 | --- | --- |
 | `uv run python -m dbp.ingest.stada_probe "Hamburg Hbf"` | Checks which station fields StaDa returns (federal state, coordinates) |
+| `uv run python -m dbp.ingest.download_s3` | Downloads StaDa station data and builds the EVA-to-state lookup |
 | `uv run python -m dbp.ingest.find_eva --write` | Looks up EVA numbers for the hubs in `config/hubs.yml` |
+| `uv run dbt build --project-dir dbt --profiles-dir dbt` | Builds and tests local DuckDB models and aggregate marts |
+| `uv run python -m dbp.publish.export_marts` | Exports aggregate Parquet marts and freshness metadata |
+| `uv run streamlit run src/dbp/app.py` | Launches the historical dashboard at `http://localhost:8501` |
 | `uv run pytest` | Runs the unit tests |
 
 ## Roadmap
@@ -54,12 +63,25 @@ Other week-1 scripts:
 | 5 | 2–8 Nov | Near-real-time hub layer |
 | 6 | 9–15 Nov | AI summary, polish, v1.0 |
 
-## Data and credits
+## Data coverage and known gaps
+
+History covers Nov 2025 to the latest month published by the source (currently Sep 2026); the
+`monthly_history` workflow checks daily and adds each new month automatically. Two months are
+incomplete, found by the dbt mart `agg_month_coverage` (hours with under half the usual stop volume
+for that weekday and hour):
+
+- **Nov 2025:** 1–2 Nov cover only the ~100 largest stations; all stations from 2 Nov onwards.
+- **Jul 2026:** overnight hours (00:00–05:00) on 7 nights (4, 7–9, 21–23 Jul) were not collected by the
+  source, about 3% of the month's stops. Monthly figures barely change, but the dashboard marks
+  both months as "partial data".
+
 
 - Historical stop data: [piebro/deutsche-bahn-data](https://huggingface.co/datasets/piebro/deutsche-bahn-data),
   CC BY 4.0, based on Deutsche Bahn Timetables API data.
 - Live data and station data: [DB API Marketplace](https://developers.deutschebahn.com/db-api-marketplace)
   (Timetables, StaDa), CC BY 4.0, Deutsche Bahn AG.
+- State boundaries: Natural Earth admin-1, public domain; Germany-only extract in
+  `config/germany_states.geojson`. Source: [Natural Earth](https://www.naturalearthdata.com/).
 - No personal data is collected or stored.
 
 Related public work this project builds on or differs from: Bahnvorhersage, db-punctuality by

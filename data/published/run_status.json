@@ -1,0 +1,21 @@
+{
+  "built_at": "2026-10-02T21:55:08.510482+00:00",
+  "event_month_start": "2025-11-01",
+  "event_month_end": "2026-09-01",
+  "source_month_start": "2025-11",
+  "source_month_end": "2026-09",
+  "row_counts": {
+    "agg_state_month_type": 1033,
+    "agg_station_month_type": 91820,
+    "agg_hamburg_weekly": 16257,
+    "agg_state_hour_weekday": 137594,
+    "agg_month_coverage": 11
+  },
+  "dbt": {
+    "run_at": "2026-10-02T21:54:58.857711Z",
+    "tests_passed": 37,
+    "tests_failed": 0,
+    "tests_warned": 0,
+    "models_built": 15
+  }
+}

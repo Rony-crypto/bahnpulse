@@ -1,0 +1,65 @@
+name: monthly_history
+
+# Daily check: when the S1 source publishes a new month (usually in the first days of the
+# next month), rebuild and publish the marts. Days without a new month stop after the check.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild even if no new month is published"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: monthly_history
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+
+      - name: Check for a new S1 month
+        id: check
+        run: uv run python -m dbp.publish.check_new_month
+
+      - name: Download S1 history (Nov 2025 to newest month)
+        if: steps.check.outputs.new_month != '' || inputs.force
+        run: uv run python -m dbp.ingest.download_s1 --start 2025-11 --end latest
+
+      - name: Refresh station to state map (S3)
+        if: steps.check.outputs.new_month != '' || inputs.force
+        env:
+          DB_CLIENT_ID: ${{ secrets.DB_CLIENT_ID }}
+          DB_API_KEY: ${{ secrets.DB_API_KEY }}
+        run: uv run python -m dbp.ingest.download_s3
+
+      - name: Build and test (dbt)
+        if: steps.check.outputs.new_month != '' || inputs.force
+        run: uv run dbt build --project-dir dbt --profiles-dir dbt
+
+      - name: Export marts
+        if: steps.check.outputs.new_month != '' || inputs.force
+        run: uv run python -m dbp.publish.export_marts
+
+      - name: Commit published marts
+        if: steps.check.outputs.new_month != '' || inputs.force
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/published
+          if git diff --cached --quiet; then
+            echo "Marts unchanged."
+          else
+            git commit -m "Publish marts through ${{ steps.check.outputs.new_month || 'current data' }}"
+            git push
+          fi

@@ -1,8 +1,10 @@
 # Secrets
 .env
 
-# Data (never commit raw data; it is downloaded or collected)
-data/
+# Data (never commit raw data; it is downloaded or collected). The small published
+# aggregate marts are committed so the public Streamlit app can read them (FR-11).
+data/*
+!data/published/
 *.duckdb
 *.duckdb.wal
 
@@ -25,3 +27,6 @@ dbt/logs/
 .DS_Store
 .vscode/
 .idea/
+
+# dbt per-machine user id
+dbt/.user.yml

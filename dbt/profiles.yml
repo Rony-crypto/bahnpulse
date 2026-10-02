@@ -1,0 +1,7 @@
+bahnpulse:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('BAHNPULSE_DUCKDB_PATH', 'data/bahnpulse.duckdb') }}"
+      threads: 4

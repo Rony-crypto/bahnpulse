@@ -2,6 +2,7 @@
 
 Usage:
     uv run python -m dbp.ingest.download_s1 --start 2026-06 --end 2026-08
+    uv run python -m dbp.ingest.download_s1 --start 2025-11 --end latest   # newest published
 
 Files land unchanged in data/raw/s1/. Re-running skips files that are already complete,
 so the script is safe to run again (idempotent).
@@ -23,6 +24,9 @@ log = logging.getLogger(__name__)
 
 BASE_URL = (
     "https://huggingface.co/datasets/piebro/deutsche-bahn-data/resolve/main/monthly_processed_data"
+)
+TREE_URL = (
+    "https://huggingface.co/api/datasets/piebro/deutsche-bahn-data/tree/main/monthly_processed_data"
 )
 
 
@@ -48,6 +52,27 @@ def file_name(month: str) -> str:
 
 def file_url(month: str) -> str:
     return f"{BASE_URL}/{file_name(month)}"
+
+
+def months_in_listing(paths: list[str]) -> list[str]:
+    """Months 'YYYY-MM' of the data-YYYY-MM.parquet files in a dataset file listing, sorted."""
+    names = (path.rsplit("/", 1)[-1] for path in paths)
+    return sorted(
+        name.removeprefix("data-").removesuffix(".parquet")
+        for name in names
+        if name.startswith("data-") and name.endswith(".parquet")
+    )
+
+
+@retry(stop=stop_after_attempt(4), wait=wait_exponential(min=2, max=30), reraise=True)
+def latest_published_month() -> str:
+    """Newest month the source has published, read from the Hugging Face file listing."""
+    r = requests.get(TREE_URL, timeout=30)
+    r.raise_for_status()
+    months = months_in_listing([entry["path"] for entry in r.json()])
+    if not months:
+        raise RuntimeError("no monthly files found in the S1 listing")
+    return months[-1]
 
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(min=2, max=30), reraise=True)
@@ -86,10 +111,14 @@ def download_month(month: str, out_dir: Path = RAW_S1) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--start", required=True, help="first month, YYYY-MM")
-    parser.add_argument("--end", required=True, help="last month, YYYY-MM")
+    parser.add_argument(
+        "--end", required=True, help="last month, YYYY-MM, or 'latest' for the newest published"
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    for month in months_between(args.start, args.end):
+    end = latest_published_month() if args.end == "latest" else args.end
+    log.info("months %s to %s", args.start, end)
+    for month in months_between(args.start, end):
         download_month(month)
 
 

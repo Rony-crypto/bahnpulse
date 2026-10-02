@@ -1,0 +1,131 @@
+version: 2
+
+models:
+  - name: dim_station
+    columns:
+      - name: station_key
+        data_tests:
+          - not_null
+          - unique
+      - name: federal_state
+        data_tests:
+          - not_null
+  - name: dim_train_type
+    columns:
+      - name: train_type_key
+        data_tests:
+          - not_null
+          - unique
+      - name: train_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Bus', 'Other']
+  - name: dim_line
+    columns:
+      - name: line_key
+        data_tests:
+          - not_null
+          - unique
+  - name: dim_date
+    columns:
+      - name: date_key
+        data_tests:
+          - not_null
+          - unique
+  - name: dim_hour
+    columns:
+      - name: hour_key
+        data_tests:
+          - not_null
+          - unique
+  - name: fct_stop_event
+    columns:
+      - name: stop_event_id
+        data_tests:
+          - not_null
+          - unique
+      - name: station_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_station')
+                field: station_key
+      - name: train_type_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_train_type')
+                field: train_type_key
+      - name: date_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: hour_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_hour')
+                field: hour_key
+  - name: agg_hamburg_weekly
+    columns:
+      - name: item_kind
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['line', 'station', 'train_type']
+      - name: service_week
+        data_tests:
+          - not_null
+      - name: train_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Other']
+  - name: agg_state_month_type
+    columns:
+      - name: federal_state
+        data_tests:
+          - not_null
+      - name: train_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Other']
+  - name: agg_month_coverage
+    columns:
+      - name: service_month
+        data_tests:
+          - not_null
+          - unique
+      - name: low_data_hours
+        data_tests:
+          - not_null
+  - name: agg_state_hour_weekday
+    columns:
+      - name: federal_state
+        data_tests:
+          - not_null
+      - name: iso_weekday
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7]
+      - name: service_hour
+        data_tests:
+          - not_null
+      - name: train_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Other']
+  - name: agg_station_month_type
+    columns:
+      - name: station_key
+        data_tests:
+          - not_null
+      - name: federal_state
+        data_tests:
+          - not_null

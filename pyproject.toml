@@ -12,6 +12,10 @@ dependencies = [
     "tenacity>=9.0",
     "python-dotenv>=1.0",
     "pyyaml>=6.0",
+    "dbt-duckdb>=1.11.0",
+    "streamlit>=1.64.0",
+    "plotly>=7.1.0",
+    "huggingface-hub>=0.25",
 ]
 
 [dependency-groups]
