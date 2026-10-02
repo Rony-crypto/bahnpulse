@@ -1,13 +1,14 @@
 name: collect_hubs
 
 # One-week reliability test of the near-real-time collector (S2) on the 6 Hamburg hubs.
-# Every 15 min: fchg per hub; first run of each hour also plan for the next hours. Raw XML
-# (gzipped) and a per-run call log go to a private Hugging Face dataset, since runners keep
-# nothing between runs. GitHub may start scheduled runs late or skip some: that is part of
-# what this test measures.
+# Hourly (minute 7, away from GitHub's busy top of the hour): fchg plus plan for the current
+# and next two hours per hub. Raw XML (gzipped) and a per-run call log go to a private Hugging
+# Face dataset, since runners keep nothing between runs. GitHub may start scheduled runs late
+# or skip some: that is part of what this test measures, together with whether hourly fchg
+# snapshots miss delays of trains that passed between runs.
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -31,4 +32,4 @@ jobs:
           DB_API_KEY: ${{ secrets.DB_API_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_S2_REPO: ${{ vars.HF_S2_REPO }}
-        run: uv run python -m dbp.ingest.collect_hubs --state Hamburg
+        run: uv run python -m dbp.ingest.collect_hubs --state Hamburg --plan

@@ -10,6 +10,7 @@ import html
 import json
 import math
 from functools import partial
+from typing import cast
 
 import duckdb
 import pandas as pd
@@ -466,14 +467,14 @@ def render_dashboard(view: str) -> None:
         from_column.selectbox(
             "From",
             available_months,
-            format_func=month_names.get,
+            format_func=lambda month: month_names[month],
             key="w_month_from",
             on_change=store_month_range,
         )
         to_column.selectbox(
             "To",
             available_months,
-            format_func=month_names.get,
+            format_func=lambda month: month_names[month],
             key="w_month_to",
             on_change=store_month_range,
         )
@@ -587,12 +588,12 @@ def render_germany(
     )
 
     metric_columns = st.columns(4)
-    for column, label, key, unit, diff_unit, delta_color, icon in (
-        (metric_columns[0], "On-time arrivals", "punctuality", "%", " pts", "normal",
+    for column, label, key, unit, diff_unit, higher_is_better, icon in (
+        (metric_columns[0], "On-time arrivals", "punctuality", "%", " pts", True,
          ":material/schedule:"),
-        (metric_columns[1], "Average arrival delay", "delay", " min", " min", "inverse",
+        (metric_columns[1], "Average arrival delay", "delay", " min", " min", False,
          ":material/timer:"),
-        (metric_columns[2], "Cancelled stops", "cancelled", "%", " pts", "inverse",
+        (metric_columns[2], "Cancelled stops", "cancelled", "%", " pts", False,
          ":material/cancel:"),
     ):
         value = shown[key]
@@ -604,7 +605,7 @@ def render_germany(
             label,
             "–" if pd.isna(value) else f"{value:.1f}{unit}",
             delta,
-            delta_color=delta_color,
+            delta_color="normal" if higher_is_better else "inverse",
             delta_description="vs Germany" if delta else None,
             icon=icon,
             chart_data=sparkline(key),
@@ -1109,8 +1110,8 @@ def hour_weekday_heatmap(frame: pd.DataFrame) -> tuple[go.Figure | None, str, st
         day, hour = position
         return f"{WEEKDAYS[day - 1]} {hour:02d}:00 ({grid.loc[position, 'punctuality_pct']:.0f}%)"
 
-    best = slot(grid["punctuality_pct"].idxmax())
-    worst = slot(grid["punctuality_pct"].idxmin())
+    best = slot(cast(tuple[int, int], grid["punctuality_pct"].idxmax()))
+    worst = slot(cast(tuple[int, int], grid["punctuality_pct"].idxmin()))
     low = 5 * math.floor(grid["punctuality_pct"].min() / 5)
     high = 5 * math.ceil(grid["punctuality_pct"].max() / 5)
     figure = go.Figure(
@@ -1256,6 +1257,7 @@ def render_hamburg(hamburg_frame: pd.DataFrame, month_range: tuple[str, str]) ->
                 "Train type", groups, default=groups, key="hamburg_train_types"
             )
             hamburg = hamburg.loc[hamburg["train_group"].isin(selected_groups)]
+        family = "S-Bahn"
         if item_kind == "line":
             family = st.segmented_control(
                 "Lines to compare",

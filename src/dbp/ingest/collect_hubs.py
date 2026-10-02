@@ -2,13 +2,13 @@
 
 Usage:
     uv run python -m dbp.ingest.collect_hubs --state Hamburg --no-upload   # local test
-    uv run python -m dbp.ingest.collect_hubs --state Hamburg               # Actions, every 15 min
+    uv run python -m dbp.ingest.collect_hubs --state Hamburg --plan        # Actions, hourly
 
-Every run calls fchg (all known changes) per hub; the first run of each hour also calls plan
-for the current and next two hours. Responses are stored unchanged (gzipped) with the fetch
-time in the path, plus one JSON line per call (status, size, duration) for the reliability
-test. With HF_S2_REPO set, the run's files are uploaded to that private Hugging Face dataset,
-because a GitHub runner keeps nothing between runs.
+Every run calls fchg (all known changes) per hub; with --plan (or in the first quarter of an
+hour) it also calls plan for the current and next two hours. Responses are stored unchanged
+(gzipped) with the fetch time in the path, plus one JSON line per call (status, size,
+duration) for the reliability test. With HF_S2_REPO set, the run's files are uploaded to that
+private Hugging Face dataset, because a GitHub runner keeps nothing between runs.
 """
 
 from __future__ import annotations
