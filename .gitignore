@@ -30,3 +30,6 @@ dbt/logs/
 
 # dbt per-machine user id
 dbt/.user.yml
+
+# Personal Claude Code settings
+.claude/settings.local.json
