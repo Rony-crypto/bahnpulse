@@ -6,7 +6,7 @@ repository root after downloading S1 and StaDa data:
 ```bash
 uv run dbt build --project-dir dbt --profiles-dir dbt
 uv run python -m dbp.publish.export_marts
-uv run streamlit run src/dbp/app.py
+uv run streamlit run src/dbp/bahnpulse_app.py
 ```
 
 The default DuckDB database is `data/bahnpulse.duckdb`; override it with

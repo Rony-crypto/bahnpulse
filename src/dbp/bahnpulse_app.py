@@ -1,6 +1,6 @@
 """BahnPulse historical dashboard.
 
-Launch with `uv run streamlit run src/dbp/app.py` after exporting dbt marts.
+Launch with `uv run streamlit run src/dbp/bahnpulse_app.py` after exporting dbt marts.
 """
 
 from __future__ import annotations
