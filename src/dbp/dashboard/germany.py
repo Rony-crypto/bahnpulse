@@ -26,6 +26,7 @@ from dbp.dashboard.data import (
     summarize_states,
     summarize_stations,
 )
+from dbp.dashboard.spread import render_delay_spread
 from dbp.dashboard.theme import palette
 
 ALL_GERMANY = "All Germany"
@@ -76,6 +77,7 @@ def render_germany(
     month_range: tuple[str, str],
     page_filters,
     gaps: dict[str, int],
+    spread: dict[str, pd.DataFrame],
 ) -> None:
     groups = [group for group in GROUP_ORDER if group in state_frame["train_group"].unique()]
     state_names = sorted(state_frame["federal_state"].dropna().unique().tolist())
@@ -341,6 +343,8 @@ def render_germany(
                 f"worst: {worst_slot} · best: {best}"
             )
             st.plotly_chart(heatmap, width="stretch", config={"displayModeBar": False})
+
+    render_delay_spread(spread, month_range, selected_groups, area if is_state else None)
 
     with st.container(border=True, key="card_trend"):
         st.subheader(f"Monthly trend · {area}" if is_state else "Monthly trend")

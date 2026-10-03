@@ -99,8 +99,18 @@ def render_dashboard(view: str) -> None:
         st.html(hero_banner_html(month_range))
 
     if view == "Germany":
+        spread = {
+            name: marts[name] for name in ("delay_sources", "station_gain", "along_route")
+        }
         render_germany(
-            state_frame, marts["station"], marts["hourly"], states, month_range, page_filters, gaps
+            state_frame,
+            marts["station"],
+            marts["hourly"],
+            states,
+            month_range,
+            page_filters,
+            gaps,
+            spread,
         )
     else:
         render_hamburg(marts["hamburg"], month_range)

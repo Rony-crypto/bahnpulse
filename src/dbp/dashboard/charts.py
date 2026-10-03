@@ -378,6 +378,113 @@ body {{
 """
 
 
+# Where a late trip's delay came from, in the delay ramp: blush (already late at the first
+# station), raspberry (added running between stations), wine (added standing at stations).
+DELAY_SOURCES = [
+    ("origin_pct", "At the first station", "#F4B6C2"),
+    ("running_pct", "Between stations", "#DB4568"),
+    ("dwell_pct", "At stations", "#851637"),
+]
+
+
+def delay_sources_html(table: pd.DataFrame) -> str:
+    """100% bars per train type: share of a late trip's delay minutes by where they arose."""
+    theme = palette()
+    rows = []
+    for row in table.itertuples():
+        segments = []
+        for column, label, color in DELAY_SOURCES:
+            share = getattr(row, column)
+            tip = html.escape(
+                f"<b>{html.escape(row.train_group)} · {html.escape(label.lower())}</b><br>"
+                f"{share:.0f}% of the delay minutes of late trips<br>"
+                f"{row.late_trip_pct:.0f}% of trips end 6+ min late, "
+                f"on average {row.avg_final_late_min:.0f} min"
+            )
+            segments.append(
+                f'<div class="bp-seg" style="width:{share:.3f}%;background:{color};'
+                f'color:{text_color_on(color)}" data-tip="{tip}">'
+                f'{f"{share:.0f}%" if share >= 8 else ""}</div>'
+            )
+        rows.append(
+            f'<div class="bp-row"><div class="bp-name">{html.escape(row.train_group)}</div>'
+            f'<div class="bp-track">{"".join(segments)}</div></div>'
+        )
+    legend = "".join(
+        f'<span class="bp-key"><i style="background:{color}"></i>{html.escape(label)}</span>'
+        for _, label, color in DELAY_SOURCES
+    )
+    return f"""
+<style>
+body {{
+    margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: {theme["ink"]};
+}}
+.bp-bars {{ display: flex; flex-direction: column; gap: 0.6rem; padding: 0.5rem 1.2rem 0 0; }}
+.bp-row {{ display: flex; align-items: center; gap: 0.75rem; }}
+.bp-name {{
+    width: 3.2rem; text-align: right; font-size: 0.85rem; color: {theme["muted"]}; flex: none;
+}}
+.bp-track {{
+    flex: 1; display: flex; height: 2.4rem; border-radius: 0 6px 6px 0; overflow: hidden;
+}}
+.bp-seg {{
+    display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
+    box-shadow: inset -1.5px 0 0 {theme["card"]}; overflow: hidden; white-space: nowrap;
+    transition: filter 0.15s;
+}}
+.bp-seg:hover {{ filter: brightness(1.1); }}
+.bp-legend {{
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; margin: 0.4rem 0 0 3.95rem;
+    font-size: 0.8rem;
+}}
+.bp-key {{ display: flex; align-items: center; gap: 0.4rem; }}
+.bp-key i {{ width: 0.75rem; height: 0.75rem; border-radius: 2px; }}
+</style>
+<div class="bp-bars">{"".join(rows)}<div class="bp-legend">{legend}</div></div>
+{tooltip_assets()}
+"""
+
+
+def along_route_chart(route: pd.DataFrame) -> go.Figure:
+    """Share of trains 6+ minutes late at each point of the route, one line per train type."""
+    colors = palette()
+    groups = [group for group in GROUP_ORDER if group in set(route["train_group"])]
+    line_colors = dict(zip(groups, colors["trend"], strict=False))
+    figure = go.Figure()
+    for group in groups:
+        part = route.loc[route["train_group"] == group]
+        figure.add_scatter(
+            x=part["route_pct"],
+            y=part["late_pct"],
+            name=group,
+            mode="lines+markers",
+            line={"color": line_colors[group], "width": 3, "shape": "spline", "smoothing": 0.6},
+            marker={"size": 6, "color": line_colors[group]},
+            customdata=part["avg_late_min"],
+            hovertemplate="<b>%{fullData.name}</b> · %{x}% of the route<br>"
+            "%{y:.0f}% of trains 6+ min late<br>"
+            "On average %{customdata:.1f} min late<extra></extra>",
+        )
+    figure.update_layout(
+        height=330,
+        margin={"l": 8, "r": 8, "t": 30, "b": 8},
+        legend={"orientation": "h", "x": 0, "y": 1.1, "yanchor": "bottom", "title": None},
+        xaxis={
+            "title": "Position on the route",
+            "tickvals": [0, 25, 50, 75, 100],
+            "ticktext": ["First station", "25%", "50%", "75%", "Last station"],
+            "showgrid": False,
+        },
+        yaxis={"title": "Trains 6+ min late", "ticksuffix": "%", "gridcolor": colors["line"],
+               "rangemode": "tozero"},
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color=colors["ink"],
+        hoverlabel=hover_label(),
+    )
+    return figure
+
+
 def tooltip_text(bucket: str, share: float, count: int, group: str | None = None) -> str:
     """Tooltip HTML, escaped for use inside a data-tip attribute."""
     title = f"{group} · {bucket}" if group else bucket

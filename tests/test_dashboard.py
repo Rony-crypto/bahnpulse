@@ -2,10 +2,12 @@ import pandas as pd
 
 from dbp.dashboard.charts import delay_breakdown
 from dbp.dashboard.data import (
+    delay_sources,
     headline_kpis,
     summarize_cancellations,
     summarize_stations,
     summarize_weekly,
+    top_share,
 )
 from dbp.dashboard.hamburg import cancellation_table
 
@@ -149,4 +151,32 @@ def test_cancellation_table_names_worst_week_and_drops_small_items():
     assert table.loc[0, "cancelled_pct"] == 14
     # The 10-arrival week has the highest share but too few arrivals to count.
     assert table.loc[0, "worst"] == "week of 12 Jan 2026 (20%)"
+
+
+def test_delay_sources_shares_cover_only_trips_that_end_late():
+    frame = pd.DataFrame(
+        {
+            "train_group": ["ICE", "ICE", "S"],
+            "ends_late": [True, False, True],
+            "trip_count": [10, 30, 4],
+            "origin_late_min": [20, 99, 10],
+            "running_added_min": [60, 99, 10],
+            "dwell_added_min": [20, 99, 20],
+            "final_late_min": [150, 99, 40],
+        }
+    )
+
+    sources = delay_sources(frame).set_index("train_group")
+
+    assert sources.index.tolist() == ["ICE", "S"]
+    assert sources.loc["ICE", "running_pct"] == 60
+    assert sources.loc["ICE", "late_trip_pct"] == 25
+    assert sources.loc["ICE", "avg_final_late_min"] == 15
+    assert sources.loc["S", "dwell_pct"] == 50
+
+
+def test_top_share_takes_the_largest_values():
+    values = pd.Series([50, 10, 10, 10, 10, 10] + [0] * 34)
+
+    assert top_share(values, 0.05) == 60  # top 2 of 40: 50 + 10 of 100
 

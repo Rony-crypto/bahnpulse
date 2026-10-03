@@ -5,3 +5,8 @@ bahnpulse:
       type: duckdb
       path: "{{ env_var('BAHNPULSE_DUCKDB_PATH', 'data/bahnpulse.duckdb') }}"
       threads: 4
+      # Cap DuckDB's memory so a build never pushes the machine into swap (a 16 GB laptop
+      # slowed ~70x once DuckDB grew toward its default 80% of RAM). Above the cap DuckDB
+      # spills to its own temp files, which stays fast. Raise it on bigger machines.
+      settings:
+        memory_limit: "{{ env_var('BAHNPULSE_DUCKDB_MEMORY', '4GB') }}"

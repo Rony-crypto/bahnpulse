@@ -29,6 +29,9 @@ MART_NAMES = (
     "agg_hamburg_weekly",
     "agg_state_hour_weekday",
     "agg_month_coverage",
+    "agg_delay_sources",
+    "agg_station_delay_gain",
+    "agg_delay_along_route",
 )
 
 

@@ -20,6 +20,8 @@ def test_export_marts_writes_only_aggregate_parquet(tmp_path):
         SELECT 'Hamburg' AS federal_state, 1 AS iso_weekday, 8 AS service_hour
     """)
     con.sql("CREATE TABLE marts.agg_month_coverage AS SELECT DATE '2026-01-01' AS service_month")
+    for name in ("agg_delay_sources", "agg_station_delay_gain", "agg_delay_along_route"):
+        con.sql(f"CREATE TABLE marts.{name} AS SELECT DATE '2026-01-01' AS service_month")
     con.close()
 
     published = tmp_path / "published"

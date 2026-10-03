@@ -132,3 +132,37 @@ models:
       - name: federal_state
         data_tests:
           - not_null
+  - name: agg_delay_sources
+    columns:
+      - name: service_month
+        data_tests:
+          - not_null
+      - name: train_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ICE', 'IC/EC', 'RE', 'RB', 'S']
+      - name: trip_count
+        data_tests:
+          - not_null
+  - name: agg_station_delay_gain
+    columns:
+      - name: station_name
+        data_tests:
+          - not_null
+      - name: federal_state
+        data_tests:
+          - not_null
+      - name: train_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ICE', 'IC/EC', 'RE', 'RB', 'S']
+  - name: agg_delay_along_route
+    columns:
+      - name: route_pct
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]

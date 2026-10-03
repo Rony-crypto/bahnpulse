@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-10-03T14:20:39.785130+00:00",
+  "built_at": "2026-10-03T17:55:48.286922+00:00",
   "event_month_start": "2025-11-01",
   "event_month_end": "2026-09-01",
   "source_month_start": "2025-11",
@@ -9,13 +9,16 @@
     "agg_station_month_type": 91820,
     "agg_hamburg_weekly": 16257,
     "agg_state_hour_weekday": 137594,
-    "agg_month_coverage": 11
+    "agg_month_coverage": 11,
+    "agg_delay_sources": 110,
+    "agg_station_delay_gain": 87938,
+    "agg_delay_along_route": 605
   },
   "dbt": {
-    "run_at": "2026-10-03T14:20:37.778610Z",
-    "tests_passed": 38,
+    "run_at": "2026-10-03T17:55:46.954753Z",
+    "tests_passed": 47,
     "tests_failed": 0,
     "tests_warned": 0,
-    "models_built": 15
+    "models_built": 18
   }
 }

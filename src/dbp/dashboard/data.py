@@ -20,6 +20,9 @@ MART_FILES = {
     "hamburg": MART_DIR / "agg_hamburg_weekly.parquet",
     "hourly": MART_DIR / "agg_state_hour_weekday.parquet",
     "coverage": MART_DIR / "agg_month_coverage.parquet",
+    "delay_sources": MART_DIR / "agg_delay_sources.parquet",
+    "station_gain": MART_DIR / "agg_station_delay_gain.parquet",
+    "along_route": MART_DIR / "agg_delay_along_route.parquet",
 }
 # Date column each mart's "YYYY-MM" filter label is built from.
 LABEL_COLUMNS = {
@@ -27,6 +30,9 @@ LABEL_COLUMNS = {
     "station": "service_month",
     "hourly": "service_month",
     "hamburg": "service_week",
+    "delay_sources": "service_month",
+    "station_gain": "service_month",
+    "along_route": "service_month",
 }
 GROUP_ORDER = ["ICE", "IC/EC", "RE", "RB", "S", "Other"]
 MIN_STATION_ARRIVALS = 100
@@ -202,3 +208,58 @@ def data_gaps(coverage: pd.DataFrame, month_range: tuple[str, str]) -> dict[str,
     in_range = labels.between(*month_range) & (coverage["low_data_hours"] >= GAP_HOURS_WARN)
     return dict(zip(labels[in_range], coverage.loc[in_range, "low_data_hours"], strict=True))
 
+
+
+def delay_sources(frame: pd.DataFrame) -> pd.DataFrame:
+    """Per train type: where the lateness of trips that ended 6+ minutes late came from.
+
+    Shares are of the delay minutes added (lateness at the first station + added while running
+    + added at stations); minutes later recovered by timetable buffers are left out.
+    """
+    late = frame.loc[frame["ends_late"]].groupby("train_group")[
+        ["trip_count", "origin_late_min", "running_added_min", "dwell_added_min", "final_late_min"]
+    ].sum()
+    all_trips = frame.groupby("train_group")["trip_count"].sum()
+    added = late[["origin_late_min", "running_added_min", "dwell_added_min"]].sum(axis=1)
+    table = pd.DataFrame(
+        {
+            "origin_pct": 100 * late["origin_late_min"] / added,
+            "running_pct": 100 * late["running_added_min"] / added,
+            "dwell_pct": 100 * late["dwell_added_min"] / added,
+            "late_trip_pct": 100 * late["trip_count"] / all_trips.reindex(late.index),
+            "avg_final_late_min": late["final_late_min"] / late["trip_count"],
+            "late_trips": late["trip_count"].astype("int64"),
+        }
+    )
+    order = [group for group in GROUP_ORDER if group in table.index]
+    return table.reindex(order).rename_axis("train_group").reset_index()
+
+
+def lateness_along_route(frame: pd.DataFrame) -> pd.DataFrame:
+    """Share of stops 6+ minutes late and average lateness by position on the route."""
+    route = frame.groupby(["train_group", "route_pct"], as_index=False)[
+        ["stop_count", "late_min", "late_stop_count"]
+    ].sum()
+    route["late_pct"] = 100 * route["late_stop_count"] / route["stop_count"]
+    route["avg_late_min"] = route["late_min"] / route["stop_count"]
+    return route.sort_values(["train_group", "route_pct"]).reset_index(drop=True)
+
+
+def station_delay_gain(frame: pd.DataFrame) -> pd.DataFrame:
+    """Per station: delay minutes added on the way in and while standing, most added first."""
+    stations = frame.groupby(["station_name", "federal_state"], as_index=False)[
+        ["measured_stop_count", "running_added_min", "dwell_added_min", "delay_start_count"]
+    ].sum()
+    stations["added_min"] = stations["running_added_min"] + stations["dwell_added_min"]
+    stations = stations.loc[stations["added_min"] > 0]
+    stations["added_per_train"] = stations["added_min"] / stations["measured_stop_count"]
+    stations["on_the_way_pct"] = 100 * stations["running_added_min"] / stations["added_min"]
+    stations["added_hours"] = stations["added_min"] / 60
+    return stations.sort_values("added_min", ascending=False).reset_index(drop=True)
+
+
+def top_share(values: pd.Series, top_fraction: float) -> float:
+    """Share of the total held by the largest `top_fraction` of values (e.g. top 5%)."""
+    ordered = values.sort_values(ascending=False)
+    count = max(1, round(len(ordered) * top_fraction))
+    return 100 * ordered.head(count).sum() / ordered.sum() if ordered.sum() else math.nan

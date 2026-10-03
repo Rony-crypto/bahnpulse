@@ -45,6 +45,9 @@ jobs:
 
       - name: Build and test (dbt)
         if: steps.check.outputs.new_month != '' || inputs.force
+        env:
+          # The runner has 16 GB; more memory than the 4 GB laptop default means less spilling.
+          BAHNPULSE_DUCKDB_MEMORY: 10GB
         run: uv run dbt build --project-dir dbt --profiles-dir dbt
 
       - name: Export marts
