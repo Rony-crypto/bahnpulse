@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import html
 import math
+from itertools import pairwise
 from typing import cast
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-from dbp.dashboard.data import GROUP_ORDER, summarize_national_months
+from dbp.dashboard.data import GROUP_ORDER, summarize_months
 from dbp.dashboard.theme import (
     DB_INK,
     DB_RED_SCALE,
@@ -23,6 +25,8 @@ from dbp.dashboard.theme import (
 )
 
 MIN_HEATMAP_ARRIVALS = 50
+# States with fewer arrivals in a month stay out of the trend's state range (too noisy).
+MIN_RANGE_ARRIVALS = 500
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
@@ -365,63 +369,225 @@ def hour_weekday_heatmap(frame: pd.DataFrame) -> tuple[go.Figure | None, str, st
     return figure, best, worst
 
 
+def rgba(color: str, alpha: float) -> str:
+    r, g, b = (int(color[i : i + 2], 16) for i in (1, 3, 5))
+    return f"rgba({r},{g},{b},{alpha})"
+
+
+def spread_labels(values: list[float], gap: float) -> list[float]:
+    """Nudge end-of-line label heights apart so close values do not overlap."""
+    order = sorted(range(len(values)), key=lambda i: values[i])
+    placed = list(values)
+    for previous, current in pairwise(order):
+        placed[current] = max(placed[current], placed[previous] + gap)
+    return placed
+
+
 def monthly_trend(
     selected_states: pd.DataFrame, area: str | None, gaps: dict[str, int] | None = None
 ) -> go.Figure:
-    """Train-type lines by month; with a state, solid state lines over dotted Germany lines."""
+    """On-time lines per train type over the range across states, average delay bars below.
+
+    With a state chosen, its lines are solid and Germany's dotted. The state band is drawn
+    only for a single train type, where it stays readable.
+    """
     colors = palette()
-    monthly = summarize_national_months(selected_states).assign(scope="Germany")
-    if area:
-        state_monthly = summarize_national_months(
-            selected_states.loc[selected_states["federal_state"] == area]
-        ).assign(scope=area)
-        monthly = pd.concat([state_monthly, monthly], ignore_index=True)
-    monthly["service_month"] = pd.to_datetime(monthly["service_month_label"])
-    trend = px.line(
-        monthly,
-        x="service_month",
-        y="punctuality_pct",
-        color="train_group",
-        line_dash="scope" if area else None,
-        line_dash_map={area: "solid", "Germany": "dot"} if area else None,
-        markers=True,
-        category_orders={"train_group": GROUP_ORDER, "scope": [area, "Germany"] if area else []},
-        color_discrete_map=group_colors(),
+    type_colors = group_colors()
+    focus = (
+        selected_states.loc[selected_states["federal_state"] == area] if area else selected_states
     )
-    trend.update_traces(
-        line_width=2,
-        marker_size=8,
-        hovertemplate=(
-            "<b>%{fullData.name}</b><br>%{x|%b %Y}<br>On time: %{y:.1f}%<extra></extra>"
-        ),
+    lines = summarize_months(focus, ["train_group"])
+    germany = summarize_months(selected_states, ["train_group"]) if area else None
+    per_state = summarize_months(selected_states, ["train_group", "federal_state"])
+    per_state = per_state.loc[per_state["arrival_count"] >= MIN_RANGE_ARRIVALS]
+    delays = summarize_months(focus, [])
+    groups = [group for group in GROUP_ORDER if group in set(lines["train_group"])]
+    single = len(groups) == 1
+    to_date = lambda labels: pd.to_datetime(labels)  # noqa: E731
+    gap_note = lambda labels: [  # noqa: E731
+        "<br><i>Incomplete month: some data missing</i>" if label in (gaps or {}) else ""
+        for label in labels
+    ]
+
+    figure = make_subplots(
+        rows=2, cols=1, shared_xaxes=True, row_heights=[0.74, 0.26], vertical_spacing=0.05
     )
-    if area:
-        trend.update_traces(selector={"line": {"dash": "dot"}}, marker_size=5, opacity=0.75)
-    trend.update_xaxes(tickformat="%b %Y", dtick="M1")
-    # Shade months with data gaps so a dip there is not read as a real change.
-    for month in gaps or {}:
-        start = pd.Period(month).start_time
-        trend.add_vrect(
-            x0=start - pd.Timedelta(days=12),
-            x1=start + pd.Timedelta(days=12),
-            fillcolor=colors["line"],
-            opacity=0.45,
-            line_width=0,
-            layer="below",
-            annotation_text="partial data",
-            annotation_position="top",
-            annotation_font={"size": 11, "color": colors["muted"]},
+    end_labels = []
+    for group in groups:
+        color = type_colors[group]
+        line = lines.loc[lines["train_group"] == group].sort_values("service_month_label")
+        states = per_state.loc[per_state["train_group"] == group]
+        low = states.loc[states.groupby("service_month_label")["punctuality_pct"].idxmin()]
+        high = states.loc[states.groupby("service_month_label")["punctuality_pct"].idxmax()]
+        state_range = (
+            low.set_index("service_month_label")[["federal_state", "punctuality_pct"]]
+            .join(
+                high.set_index("service_month_label")[["federal_state", "punctuality_pct"]],
+                lsuffix="_low",
+                rsuffix="_high",
+            )
+            .reindex(line["service_month_label"])
         )
-    trend.update_layout(
-        height=340,
-        margin={"l": 8, "r": 8, "t": 12, "b": 8},
-        xaxis_title=None,
-        yaxis_title="On-time arrivals (%)",
-        legend_title=None,
+        if single and not state_range.empty:
+            band_x = to_date(state_range.index)
+            figure.add_scatter(
+                x=band_x,
+                y=state_range["punctuality_pct_high"],
+                mode="lines",
+                line={"width": 0, "shape": "spline", "smoothing": 0.6},
+                hoverinfo="skip",
+                showlegend=False,
+                row=1,
+                col=1,
+            )
+            figure.add_scatter(
+                x=band_x,
+                y=state_range["punctuality_pct_low"],
+                mode="lines",
+                line={"width": 0, "shape": "spline", "smoothing": 0.6},
+                fill="tonexty",
+                fillcolor=rgba(color, 0.13),
+                name="Range across states",
+                hoverinfo="skip",
+                row=1,
+                col=1,
+            )
+        if germany is not None:
+            national = germany.loc[germany["train_group"] == group].sort_values(
+                "service_month_label"
+            )
+            figure.add_scatter(
+                x=to_date(national["service_month_label"]),
+                y=national["punctuality_pct"],
+                mode="lines",
+                name="Germany" if single else f"{group} · Germany",
+                line={
+                    "color": color,
+                    "width": 1.8,
+                    "dash": "dot",
+                    "shape": "spline",
+                    "smoothing": 0.6,
+                },
+                opacity=0.75,
+                hovertemplate="<b>%{fullData.name}</b><br>%{x|%b %Y}<br>"
+                "On time: %{y:.1f}%<extra></extra>",
+                row=1,
+                col=1,
+            )
+            end_labels.append((national, color, 0.75))
+        change = line["punctuality_pct"].diff()
+        range_text = [
+            ""
+            if pd.isna(row.punctuality_pct_low)
+            else f"<br>States: {row.federal_state_low} {row.punctuality_pct_low:.0f}% – "
+            f"{row.federal_state_high} {row.punctuality_pct_high:.0f}%"
+            for row in state_range.itertuples()
+        ]
+        figure.add_scatter(
+            x=to_date(line["service_month_label"]),
+            y=line["punctuality_pct"],
+            mode="lines+markers",
+            name=(area if single else f"{group} · {area}") if area else group,
+            line={"color": color, "width": 3, "shape": "spline", "smoothing": 0.6},
+            marker={"size": 8, "color": color, "line": {"color": colors["card"], "width": 2}},
+            customdata=list(
+                zip(
+                    line["avg_arrival_delay_min"],
+                    ["" if pd.isna(c) else f" ({c:+.1f} pts)" for c in change],
+                    range_text,
+                    gap_note(line["service_month_label"]),
+                    strict=True,
+                )
+            ),
+            hovertemplate="<b>%{fullData.name}</b> · %{x|%b %Y}<br>"
+            "On time: %{y:.1f}%%{customdata[1]}<br>"
+            "Avg delay: %{customdata[0]:.1f} min%{customdata[2]}%{customdata[3]}<extra></extra>",
+            row=1,
+            col=1,
+        )
+        end_labels.append((line, color, 1.0))
+        line_months = line["service_month_label"].tolist()
+        if single and len(line_months) >= 3:
+            for label, row in (
+                ("Best", line.loc[line["punctuality_pct"].idxmax()]),
+                ("Worst", line.loc[line["punctuality_pct"].idxmin()]),
+            ):
+                # Labels on the first or last month point inward, away from the axis.
+                position = line_months.index(row["service_month_label"])
+                figure.add_annotation(
+                    x=to_date([row["service_month_label"]])[0],
+                    y=row["punctuality_pct"],
+                    text=f"{label} {row['punctuality_pct']:.1f}%",
+                    showarrow=False,
+                    yshift=16 if label == "Best" else -16,
+                    xanchor="left" if position == 0 else "center",
+                    xshift=-4 if position == 0 else 0,
+                    font={"size": 11, "color": colors["muted"]},
+                    row=1,
+                    col=1,
+                )
+
+    # Latest value at the end of each line, nudged apart where lines end close together.
+    end_labels = [
+        (frame.dropna(subset=["punctuality_pct"]), color, opacity)
+        for frame, color, opacity in end_labels
+    ]
+    end_labels = [entry for entry in end_labels if not entry[0].empty]
+    values = pd.concat([frame["punctuality_pct"] for frame, _, _ in end_labels] or [pd.Series()])
+    span = float(values.max() - values.min()) if len(values) else 0.0
+    heights = spread_labels(
+        [frame["punctuality_pct"].iloc[-1] for frame, _, _ in end_labels], max(span, 4) * 0.07
+    )
+    for (frame, color, opacity), height in zip(end_labels, heights, strict=True):
+        figure.add_annotation(
+            x=to_date([frame["service_month_label"].iloc[-1]])[0],
+            y=height,
+            text=f"<b>{frame['punctuality_pct'].iloc[-1]:.1f}%</b>",
+            showarrow=False,
+            xanchor="left",
+            xshift=10,
+            opacity=opacity,
+            font={"size": 12, "color": color},
+            row=1,
+            col=1,
+        )
+
+    figure.add_bar(
+        x=to_date(delays["service_month_label"]),
+        y=delays["avg_arrival_delay_min"],
+        name="Avg delay",
+        showlegend=False,
+        marker={"color": rgba(DELAY_BUCKETS[2][2], 0.55), "cornerradius": 4},
+        customdata=list(
+            zip(delays["arrival_count"], gap_note(delays["service_month_label"]), strict=True)
+        ),
+        hovertemplate="<b>%{x|%b %Y}</b><br>Avg arrival delay: %{y:.1f} min<br>"
+        "Arrivals: %{customdata[0]:,}%{customdata[1]}<extra></extra>",
+        row=2,
+        col=1,
+    )
+
+    months = to_date(delays["service_month_label"])
+    first, last = months.min(), months.max()
+    figure.update_xaxes(
+        showgrid=False,
+        tickformat="%b<br>%Y",
+        dtick="M1",
+        ticks="",
+        range=[first - pd.Timedelta(days=12), last + pd.Timedelta(days=28)],
+    )
+    figure.update_yaxes(gridcolor=colors["line"], zeroline=False)
+    figure.update_yaxes(title_text="On time (%)", ticksuffix="%", row=1, col=1)
+    figure.update_yaxes(title_text="Delay (min)", nticks=3, row=2, col=1)
+    figure.update_layout(
+        height=470,
+        margin={"l": 8, "r": 8, "t": 30, "b": 8},
+        bargap=0.45,
+        hovermode="closest",
+        legend={"orientation": "h", "x": 0, "y": 1.08, "yanchor": "bottom", "title": None},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
+        font_color=colors["ink"],
         hoverlabel=hover_label(),
     )
-    trend.update_yaxes(gridcolor=colors["line"])
-    trend.update_xaxes(showgrid=False)
-    return trend
+    return figure

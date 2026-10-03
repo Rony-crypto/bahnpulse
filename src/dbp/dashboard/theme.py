@@ -70,7 +70,6 @@ def group_colors() -> dict[str, str]:
     return dict(zip(GROUP_ORDER, palette()["categorical"], strict=True))
 
 
-
 # BahnPulse's own mark (not the DB logo): a pulse line running along a rail.
 LOGO_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
 <rect width="48" height="48" rx="12" fill="#FFFFFF"/>
@@ -217,6 +216,12 @@ def app_css() -> str:
   background: {colors["callout"]}; border: none !important; border-radius: 12px;
   padding: 0.6rem 0.9rem;
 }}
+/* Attribution line at the page bottom */
+.bp-footer {{
+  margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid {colors["line"]};
+  text-align: center; font-size: 0.75rem; color: {colors["muted"]};
+}}
+.bp-footer a {{ color: {colors["muted"]}; }}
 /* Section titles with a red accent */
 [data-testid="stHeadingWithActionElements"] h3 {{
   border-left: 4px solid #EC0016; padding-left: 0.6rem; font-size: 1.35rem;

@@ -175,14 +175,8 @@ def render_germany(
     with map_column, st.container(border=True, key="card_map"):
         st.subheader("Punctuality by federal state")
         st.caption(
-            "Share of arrivals under 6 minutes late · darker red = fewer trains on time · "
-            "gray = no data"
-        )
-        st.caption(
-            f"Showing {', '.join(selected_groups)} only: states are compared within the same "
-            "train type, because a state with many S-Bahn trains is not comparable with one "
-            "served mostly by long-distance trains."
-            + (" Mixing train types weakens that comparison." if len(selected_groups) > 1 else "")
+            f"{', '.join(selected_groups)} · share of arrivals under 6 minutes late · "
+            "darker red = fewer trains on time"
         )
         st.plotly_chart(
             state_map(states, state_summary, area if is_state else None),
@@ -273,10 +267,7 @@ def render_germany(
 
     with st.container(border=True, key="card_delays"):
         st.subheader(f"How late are arrivals? · {scope}")
-        st.caption(
-            "Share of planned arrivals, cancelled ones included, so “on time” here is a little "
-            "lower than the headline figure, which leaves cancellations out (DB definition)."
-        )
+        st.caption("Share of planned arrivals, cancellations included")
         donut_column, bars_column = st.columns([1, 1.6])
         with donut_column:
             # Iframes keep the SVG (st.html strips it) and the cursor-following tooltips.
@@ -312,6 +303,12 @@ def render_germany(
 
     with st.container(border=True, key="card_trend"):
         st.subheader(f"Monthly trend · {area}" if is_state else "Monthly trend")
+        st.caption(
+            "On-time share by month"
+            + (" · shaded band = range across all states" if len(selected_groups) == 1 else "")
+            + (" · dotted = Germany" if is_state else "")
+            + " · bars = average arrival delay"
+        )
         st.plotly_chart(
             monthly_trend(selected_states, area if is_state else None, gaps),
             width="stretch",

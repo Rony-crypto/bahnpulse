@@ -10,14 +10,7 @@ import json
 import pandas as pd
 import streamlit as st
 
-from dbp.dashboard.data import (
-    data_gaps,
-    format_months,
-    load_marts,
-    load_run_status,
-    load_states,
-    mart_signature,
-)
+from dbp.dashboard.data import data_gaps, load_marts, load_states, mart_signature
 from dbp.dashboard.germany import render_germany
 from dbp.dashboard.hamburg import render_hamburg
 from dbp.dashboard.theme import (
@@ -28,11 +21,6 @@ from dbp.dashboard.theme import (
 )
 
 GITHUB_URL = "https://github.com/Rony-crypto/bahnpulse"
-# Known gaps per month (TRD section 3; found with agg_month_coverage), shown in the footer.
-COVERAGE_NOTES = {
-    "2025-11": "1–2 Nov 2025 (largest stations only)",
-    "2026-07": "7 nights in Jul 2026 (overnight data missing, ~3% of the month's stops)",
-}
 
 
 # The month range survives page switches the same way as the Germany filters (see
@@ -67,8 +55,7 @@ def render_dashboard(view: str) -> None:
         st.caption(str(error))
         return
 
-    state_frame = marts["state"].copy()
-    state_frame["service_month_label"] = format_months(state_frame, "service_month")
+    state_frame = marts["state"]
     available_months = sorted(state_frame["service_month_label"].dropna().unique().tolist())
     if not available_months:
         st.warning("No monthly history is available in the published marts.")
@@ -110,47 +97,24 @@ def render_dashboard(view: str) -> None:
         st.html(hero_banner_html(month_range))
 
     if view == "Germany":
-        station_frame = marts["station"].copy()
-        station_frame["service_month_label"] = format_months(station_frame, "service_month")
-        hourly_frame = marts["hourly"].copy()
-        hourly_frame["service_month_label"] = format_months(hourly_frame, "service_month")
         render_germany(
-            state_frame, station_frame, hourly_frame, states, month_range, page_filters, gaps
+            state_frame, marts["station"], marts["hourly"], states, month_range, page_filters, gaps
         )
     else:
-        hamburg_frame = marts["hamburg"].copy()
-        hamburg_frame["service_month_label"] = format_months(hamburg_frame, "service_week")
-        render_hamburg(hamburg_frame, month_range)
+        render_hamburg(marts["hamburg"], month_range)
 
-    render_footer(month_range[1], gaps)
+    render_footer()
 
 
-def render_footer(last_month: str, gaps: dict[str, int]) -> None:
-    status = load_run_status()
-    history_end = pd.Period(status.get("source_month_end", last_month)).strftime("%b %Y")
-    dbt_run = status.get("dbt") or {}
-    run_at = dbt_run.get("run_at") or status.get("built_at")
-    run_text = (
-        "Last pipeline run "
-        + pd.Timestamp(run_at).tz_convert("Europe/Berlin").strftime("%-d %b %Y, %H:%M %Z")
-        if run_at
-        else "Last pipeline run not recorded"
+def render_footer() -> None:
+    # One quiet line: the CC BY 4.0 data needs its attribution. Run status and data-gap
+    # notes live in docs/report_notes.md.
+    st.markdown(
+        '<div class="bp-footer">Data: Deutsche Bahn &amp; piebro (CC BY 4.0) · '
+        "Boundaries: Natural Earth · "
+        f'<a href="{GITHUB_URL}" target="_blank">GitHub</a></div>',
+        unsafe_allow_html=True,
     )
-    if dbt_run:
-        run_text += f" ({dbt_run['tests_passed']} data tests passed)"
-    st.divider()
-    st.caption(
-        f"History through {history_end} · {run_text} · "
-        "Data: Deutsche Bahn and piebro, CC BY 4.0 · State boundaries: Natural Earth, public domain"
-        f" · [Source code on GitHub]({GITHUB_URL})"
-    )
-    if gaps:
-        notes = [
-            COVERAGE_NOTES.get(month)
-            or f"{pd.Period(month).strftime('%b %Y')} ({hours} hours with partial data)"
-            for month, hours in gaps.items()
-        ]
-        st.caption("Known data gaps: " + " · ".join(notes))
 
 
 def main() -> None:

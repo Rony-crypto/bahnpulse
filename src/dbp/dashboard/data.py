@@ -21,6 +21,13 @@ MART_FILES = {
     "hourly": MART_DIR / "agg_state_hour_weekday.parquet",
     "coverage": MART_DIR / "agg_month_coverage.parquet",
 }
+# Date column each mart's "YYYY-MM" filter label is built from.
+LABEL_COLUMNS = {
+    "state": "service_month",
+    "station": "service_month",
+    "hourly": "service_month",
+    "hamburg": "service_week",
+}
 GROUP_ORDER = ["ICE", "IC/EC", "RE", "RB", "S", "Other"]
 MIN_STATION_ARRIVALS = 100
 # A month gets a data-gap warning from this many low-data hours (about one day missing).
@@ -35,7 +42,9 @@ def mart_signature() -> tuple[tuple[str, int], ...]:
     )
 
 
-@st.cache_data(show_spinner=False, max_entries=1)
+# cache_resource hands every rerun the same frames instead of an unpickled copy, so pages
+# must filter them (.loc) and never change them in place.
+@st.cache_resource(show_spinner=False, max_entries=1)
 def load_marts(signature: tuple[tuple[str, int], ...]) -> dict[str, pd.DataFrame]:
     missing = [path for path in MART_FILES.values() if not path.is_file()]
     if missing:
@@ -43,7 +52,7 @@ def load_marts(signature: tuple[tuple[str, int], ...]) -> dict[str, pd.DataFrame
 
     connection = duckdb.connect()
     try:
-        return {
+        marts = {
             name: connection.execute(
                 "SELECT * FROM read_parquet(?)", [str(path)]
             ).fetchdf()
@@ -51,6 +60,10 @@ def load_marts(signature: tuple[tuple[str, int], ...]) -> dict[str, pd.DataFrame
         }
     finally:
         connection.close()
+    # Month labels are formatted once here, not on every rerun.
+    for name, column in LABEL_COLUMNS.items():
+        marts[name]["service_month_label"] = format_months(marts[name], column)
+    return marts
 
 
 @st.cache_data(show_spinner=False)
@@ -132,14 +145,20 @@ def monthly_kpis(frame: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def summarize_national_months(frame: pd.DataFrame) -> pd.DataFrame:
-    monthly = frame.groupby(["service_month_label", "train_group"], as_index=False).agg(
-        arrival_count=("arrival_count", "sum"),
-        on_time_arrival_count=("on_time_arrival_count", "sum"),
+def summarize_months(frame: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
+    """Volume-weighted on-time share and average delay per month and the given keys."""
+    monthly = (
+        frame.assign(delay_total=frame["avg_arrival_delay_min"] * frame["arrival_count"])
+        .groupby(["service_month_label", *keys], as_index=False)
+        .agg(
+            arrival_count=("arrival_count", "sum"),
+            on_time_arrival_count=("on_time_arrival_count", "sum"),
+            delay_total=("delay_total", "sum"),
+        )
     )
-    monthly["punctuality_pct"] = (
-        100 * monthly["on_time_arrival_count"] / monthly["arrival_count"].replace(0, pd.NA)
-    )
+    arrivals = monthly["arrival_count"].where(monthly["arrival_count"] > 0)
+    monthly["punctuality_pct"] = 100 * monthly["on_time_arrival_count"] / arrivals
+    monthly["avg_arrival_delay_min"] = monthly["delay_total"] / arrivals
     return monthly
 
 
@@ -166,7 +185,3 @@ def data_gaps(coverage: pd.DataFrame, month_range: tuple[str, str]) -> dict[str,
     in_range = labels.between(*month_range) & (coverage["low_data_hours"] >= GAP_HOURS_WARN)
     return dict(zip(labels[in_range], coverage.loc[in_range, "low_data_hours"], strict=True))
 
-
-def load_run_status() -> dict:
-    status_path = PUBLISHED / "run_status.json"
-    return json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else {}
