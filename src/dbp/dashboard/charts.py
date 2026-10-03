@@ -19,7 +19,6 @@ from dbp.dashboard.theme import (
     DELAY_BUCKETS,
     DONUT_EDGE,
     DONUT_EDGE_AMOUNT,
-    group_colors,
     hover_label,
     palette,
 )
@@ -392,7 +391,6 @@ def monthly_trend(
     only for a single train type, where it stays readable.
     """
     colors = palette()
-    type_colors = group_colors()
     focus = (
         selected_states.loc[selected_states["federal_state"] == area] if area else selected_states
     )
@@ -402,6 +400,7 @@ def monthly_trend(
     per_state = per_state.loc[per_state["arrival_count"] >= MIN_RANGE_ARRIVALS]
     delays = summarize_months(focus, [])
     groups = [group for group in GROUP_ORDER if group in set(lines["train_group"])]
+    type_colors = dict(zip(groups, colors["trend"], strict=False))
     single = len(groups) == 1
     to_date = lambda labels: pd.to_datetime(labels)  # noqa: E731
     gap_note = lambda labels: [  # noqa: E731
