@@ -11,12 +11,12 @@ SELECT
     count(*) FILTER (
         WHERE event.arrival_planned_time IS NOT NULL
           AND NOT event.arrival_is_canceled
-          AND event.delay_in_min IS NOT NULL
+          AND event.arrival_delay_min IS NOT NULL
     ) AS arrival_count,
     count(*) FILTER (
         WHERE event.arrival_planned_time IS NOT NULL
           AND NOT event.arrival_is_canceled
-          AND event.delay_in_min < 6
+          AND event.arrival_delay_min < 6
     ) AS on_time_arrival_count,
     count(*) FILTER (
         WHERE event.arrival_planned_time IS NOT NULL
@@ -26,7 +26,8 @@ SELECT
         100.0 * on_time_arrival_count / nullif(arrival_count, 0),
         2
     ) AS punctuality_pct,
-    round(avg(event.delay_in_min) FILTER (
+    -- Early arrivals count as 0 minutes late.
+    round(avg(greatest(event.arrival_delay_min, 0)) FILTER (
         WHERE event.arrival_planned_time IS NOT NULL
           AND NOT event.arrival_is_canceled
     ), 2) AS avg_arrival_delay_min,

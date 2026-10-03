@@ -36,6 +36,12 @@ SELECT
     s1.departure_planned_time,
     s1.departure_change_time,
     s1.delay_in_min,
+    -- The source's delay_in_min is the departure delay at every stop except the last, where it
+    -- is the arrival delay. Punctuality is defined on arrivals (DB definition), so both delays
+    -- are derived from the timestamps (whole minutes). Negative = early.
+    date_diff('minute', s1.arrival_planned_time, s1.arrival_change_time) AS arrival_delay_min,
+    date_diff('minute', s1.departure_planned_time, s1.departure_change_time)
+        AS departure_delay_min,
     s1.arrival_is_canceled,
     s1.departure_is_canceled,
     s1.arrival_is_canceled OR s1.departure_is_canceled AS is_cancelled,

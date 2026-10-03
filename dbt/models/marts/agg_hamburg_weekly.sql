@@ -43,7 +43,7 @@ items AS (
         train_group,
         arrival_planned_time,
         arrival_is_canceled,
-        delay_in_min
+        arrival_delay_min
     FROM hamburg_events
     WHERE line_number IS NOT NULL
       AND (
@@ -56,13 +56,13 @@ items AS (
     SELECT
         'station', station_name, station_key, station_name,
         service_week, time_slot, train_group, arrival_planned_time, arrival_is_canceled,
-        delay_in_min
+        arrival_delay_min
     FROM hamburg_events
     UNION ALL
     SELECT
         'train_type', train_group, station_key, station_name,
         service_week, time_slot, train_group, arrival_planned_time, arrival_is_canceled,
-        delay_in_min
+        arrival_delay_min
     FROM hamburg_events
 )
 SELECT
@@ -77,12 +77,12 @@ SELECT
     count(*) FILTER (
         WHERE arrival_planned_time IS NOT NULL
           AND NOT arrival_is_canceled
-          AND delay_in_min IS NOT NULL
+          AND arrival_delay_min IS NOT NULL
     ) AS arrival_count,
     count(*) FILTER (
         WHERE arrival_planned_time IS NOT NULL
           AND NOT arrival_is_canceled
-          AND delay_in_min < 6
+          AND arrival_delay_min < 6
     ) AS on_time_arrival_count,
     -- Same definition as agg_state_month_type: cancelled share of planned arrivals.
     count(*) FILTER (
@@ -92,12 +92,13 @@ SELECT
     count(*) FILTER (
         WHERE arrival_planned_time IS NOT NULL
           AND NOT arrival_is_canceled
-          AND delay_in_min IS NOT NULL
+          AND arrival_delay_min IS NOT NULL
     ) AS delay_count,
-    sum(delay_in_min) FILTER (
+    -- Early arrivals count as 0 minutes late.
+    sum(greatest(arrival_delay_min, 0)) FILTER (
         WHERE arrival_planned_time IS NOT NULL
           AND NOT arrival_is_canceled
-          AND delay_in_min IS NOT NULL
+          AND arrival_delay_min IS NOT NULL
     ) AS delay_total_min,
     round(100.0 * on_time_arrival_count / nullif(arrival_count, 0), 2) AS punctuality_pct,
     round(delay_total_min / nullif(delay_count, 0), 2) AS avg_arrival_delay_min
