@@ -8,11 +8,41 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from dbp.dashboard.data import GROUP_ORDER, MIN_STATION_ARRIVALS, summarize_weekly
+from dbp.dashboard.charts import cancel_bars_html
+from dbp.dashboard.data import (
+    GROUP_ORDER,
+    MIN_STATION_ARRIVALS,
+    summarize_cancellations,
+    summarize_weekly,
+)
 from dbp.dashboard.theme import group_colors, hover_label, palette
 
 # Line families on the Hamburg "Lines" view: line-name pattern per family.
 LINE_FAMILIES = {"S-Bahn": r"S\d+", "RE": r"RE\d+", "RB": r"RB\d+"}
+# The cancellation ranking lists at most this many items (stations run to dozens).
+MAX_CANCEL_ROWS = 10
+# A week needs this many stops before it can be named the worst week.
+MIN_WEEK_STOPS = 20
+
+
+def cancellation_table(frame: pd.DataFrame) -> pd.DataFrame:
+    """Cancelled share per item, most cancelled first, with its worst week for the tooltip."""
+    table = summarize_cancellations(frame, "item_key", "stop_count")
+    table = table.loc[table["stops"] >= MIN_STATION_ARRIVALS]
+    weekly = frame.groupby(["item_key", "service_week"], as_index=False)[
+        ["stop_count", "cancelled_stop_count"]
+    ].sum()
+    weekly = weekly.loc[weekly["stop_count"] >= MIN_WEEK_STOPS]
+    weekly["pct"] = 100 * weekly["cancelled_stop_count"] / weekly["stop_count"]
+    worst = weekly.loc[weekly.groupby("item_key")["pct"].idxmax()].set_index("item_key")
+    table["worst_week"] = [
+        f"week of {pd.Timestamp(worst.loc[item, 'service_week']):%-d %b %Y} "
+        f"({worst.loc[item, 'pct']:.0f}%)"
+        if item in worst.index and worst.loc[item, "pct"] > 0
+        else ""
+        for item in table["item_key"]
+    ]
+    return table.rename(columns={"item_key": "item"}).reset_index(drop=True)
 
 
 def line_table(frame: pd.DataFrame) -> pd.DataFrame:
@@ -60,6 +90,7 @@ def render_hamburg(hamburg_frame: pd.DataFrame, month_range: tuple[str, str]) ->
             )
             hamburg = hamburg.loc[hamburg["train_group"].isin(selected_groups)]
         family = "S-Bahn"
+        selected_hub = None
         if item_kind == "line":
             family = st.segmented_control(
                 "Lines to compare",
@@ -90,7 +121,7 @@ def render_hamburg(hamburg_frame: pd.DataFrame, month_range: tuple[str, str]) ->
                 hamburg = hamburg.loc[hamburg["station_name"] == selected_hub]
 
         slots = ["All day", "Weekday peak", "Off-peak"]
-        selected_slot = st.segmented_control("Time slot", slots, default="All day")
+        selected_slot = st.segmented_control("Time slot", slots, default="All day") or "All day"
         if selected_slot != "All day":
             hamburg = hamburg.loc[hamburg["time_slot"] == selected_slot]
         item_options = (
@@ -183,3 +214,27 @@ def render_hamburg(hamburg_frame: pd.DataFrame, month_range: tuple[str, str]) ->
                 column.plotly_chart(
                     chart, width="stretch", config={"displayModeBar": False}
                 )
+
+    context = {
+        "train_type": f"Train types at {selected_hub}" if selected_hub else "Train types",
+        "station": "Stations",
+        "line": f"{family} lines",
+    }[item_kind]
+    with st.container(border=True, key="card_hamburg_cancelled"):
+        st.subheader(f"Cancelled stops · {context}")
+        # As on the Germany page, the mixed "Other" group stays out of the ranking.
+        table = cancellation_table(hamburg.loc[hamburg["train_group"] != "Other"])
+        if table.empty:
+            st.info("Not enough stops to compare cancellations for these filters.")
+        else:
+            shown = table.head(MAX_CANCEL_ROWS)
+            st.caption(
+                "Share of planned stops cancelled · most cancelled first"
+                + ("" if selected_slot == "All day" else f" · {selected_slot.lower()}")
+                + (
+                    f" · top {len(shown)} of {len(table)}"
+                    if len(table) > len(shown)
+                    else ""
+                )
+            )
+            st.iframe(cancel_bars_html(shown), height=40 * len(shown) + 34)

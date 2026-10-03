@@ -43,6 +43,7 @@ items AS (
         train_group,
         arrival_planned_time,
         arrival_is_canceled,
+        is_cancelled,
         delay_in_min
     FROM hamburg_events
     WHERE line_number IS NOT NULL
@@ -56,13 +57,13 @@ items AS (
     SELECT
         'station', station_name, station_key, station_name,
         service_week, time_slot, train_group, arrival_planned_time, arrival_is_canceled,
-        delay_in_min
+        is_cancelled, delay_in_min
     FROM hamburg_events
     UNION ALL
     SELECT
         'train_type', train_group, station_key, station_name,
         service_week, time_slot, train_group, arrival_planned_time, arrival_is_canceled,
-        delay_in_min
+        is_cancelled, delay_in_min
     FROM hamburg_events
 )
 SELECT
@@ -74,6 +75,8 @@ SELECT
     time_slot,
     train_group,
     count(*) AS stop_count,
+    -- Same definition as agg_state_month_type: arrival or departure cancelled.
+    count(*) FILTER (WHERE is_cancelled) AS cancelled_stop_count,
     count(*) FILTER (
         WHERE arrival_planned_time IS NOT NULL
           AND NOT arrival_is_canceled

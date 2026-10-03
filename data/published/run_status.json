@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-10-02T21:55:08.510482+00:00",
+  "built_at": "2026-10-03T13:31:25.115593+00:00",
   "event_month_start": "2025-11-01",
   "event_month_end": "2026-09-01",
   "source_month_start": "2025-11",
@@ -12,8 +12,8 @@
     "agg_month_coverage": 11
   },
   "dbt": {
-    "run_at": "2026-10-02T21:54:58.857711Z",
-    "tests_passed": 37,
+    "run_at": "2026-10-03T13:31:16.839096Z",
+    "tests_passed": 38,
     "tests_failed": 0,
     "tests_warned": 0,
     "models_built": 15

@@ -15,6 +15,7 @@ from plotly.subplots import make_subplots
 from dbp.dashboard.data import GROUP_ORDER, summarize_months
 from dbp.dashboard.theme import (
     DB_INK,
+    DB_RED,
     DB_RED_SCALE,
     DELAY_BUCKETS,
     DONUT_EDGE,
@@ -259,6 +260,179 @@ body {{
 .bp-axis span {{ position: absolute; transform: translateX(-50%); }}
 </style>
 <div class="bp-bars">{"".join(rows)}<div class="bp-axis">{ticks}</div></div>
+{tooltip_assets()}
+"""
+
+
+def cancel_ticks(values: list[float]) -> tuple[float, float]:
+    """Axis maximum and a round tick step, with room past the largest value for its label."""
+    top = max(max(values, default=0) * 1.15, 1)
+    step = next(step for step in (0.5, 1, 2, 2.5, 5, 10, 20, 25, 50) if top / step <= 5)
+    return step * math.ceil(top / step), step
+
+
+def cancel_axis_html(scale: float, step: float, inset: str) -> str:
+    ticks = "".join(
+        f'<span style="left:{100 * step * index / scale:.2f}%">{step * index:g}%</span>'
+        for index in range(round(scale / step) + 1)
+    )
+    return f'<div class="bp-axis" style="margin-left:{inset}">{ticks}</div>'
+
+
+def cancel_dumbbell_html(
+    rows: pd.DataFrame, reference: pd.DataFrame | None, scope: str
+) -> str:
+    """Cancelled share per train type: a dot per type, joined to Germany's dot when the
+    scope is a state (a dumbbell), or on a stem from zero for Germany (a lollipop)."""
+    theme = palette()
+    ref_color = theme["trend"][4]
+    ref = reference.set_index("train_group") if reference is not None else None
+    values = rows["cancelled_pct"].tolist() + (
+        ref["cancelled_pct"].tolist() if ref is not None else []
+    )
+    scale, step = cancel_ticks(values)
+    position = lambda value: 100 * value / scale  # noqa: E731
+    lines = []
+    for row in rows.itertuples():
+        x = position(row.cancelled_pct)
+        tip = html.escape(
+            f"<b>{html.escape(row.train_group)} · {html.escape(scope)}</b><br>"
+            f"{row.cancelled_pct:.1f}% of stops cancelled<br>"
+            f"{row.cancelled:,} of {row.stops:,} stops"
+        )
+        marks = []
+        right = x
+        if ref is not None and row.train_group in ref.index:
+            national = ref.loc[row.train_group]
+            g = position(national["cancelled_pct"])
+            right = max(x, g)
+            ref_tip = html.escape(
+                f"<b>{html.escape(row.train_group)} · Germany</b><br>"
+                f"{national['cancelled_pct']:.1f}% of stops cancelled<br>"
+                f"{int(national['cancelled']):,} of {int(national['stops']):,} stops"
+            )
+            marks.append(
+                f'<span class="bp-link" style="left:{min(x, g):.2f}%;'
+                f'width:{abs(x - g):.2f}%"></span>'
+                f'<span class="bp-ref" style="left:{g:.2f}%" data-tip="{ref_tip}"></span>'
+            )
+        else:
+            marks.append(f'<span class="bp-stem" style="width:{x:.2f}%"></span>')
+        marks.append(f'<span class="bp-dot" style="left:{x:.2f}%" data-tip="{tip}"></span>')
+        marks.append(
+            f'<span class="bp-value" style="left:{right:.2f}%">{row.cancelled_pct:.1f}%</span>'
+        )
+        lines.append(
+            f'<div class="bp-row"><div class="bp-name">{html.escape(row.train_group)}</div>'
+            f'<div class="bp-track">{"".join(marks)}</div></div>'
+        )
+    legend = (
+        f'<div class="bp-legend"><span><i class="bp-key-dot"></i>{html.escape(scope)}</span>'
+        f'<span><i class="bp-key-ref"></i>Germany</span></div>'
+        if ref is not None
+        else ""
+    )
+    return f"""
+<style>
+body {{
+    margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: {theme["ink"]};
+}}
+.bp-chart {{ display: flex; flex-direction: column; gap: 0.35rem; padding: 0.4rem 1.2rem 0 0; }}
+.bp-row {{ display: flex; align-items: center; gap: 0.75rem; height: 2.3rem; }}
+.bp-name {{
+    width: 3.2rem; text-align: right; font-size: 0.85rem; color: {theme["muted"]}; flex: none;
+}}
+.bp-track {{
+    flex: 1; position: relative; height: 100%;
+    background: linear-gradient({theme["line"]}, {theme["line"]}) center / 100% 1px no-repeat;
+}}
+.bp-stem, .bp-link {{
+    position: absolute; top: 50%; height: 3px; transform: translateY(-50%); border-radius: 2px;
+}}
+.bp-stem {{ left: 0; background: {rgba(DB_RED, 0.45)}; }}
+.bp-link {{ background: {rgba(DB_RED, 0.35)}; }}
+.bp-dot, .bp-ref {{
+    position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%;
+    transition: transform 0.15s;
+}}
+.bp-dot {{
+    width: 16px; height: 16px; background: {DB_RED}; box-shadow: 0 0 0 3px {theme["card"]};
+    z-index: 2;
+}}
+.bp-ref {{
+    width: 12px; height: 12px; background: {theme["card"]}; border: 3px solid {ref_color};
+    z-index: 1;
+}}
+.bp-dot:hover, .bp-ref:hover {{ transform: translate(-50%, -50%) scale(1.25); }}
+.bp-value {{
+    position: absolute; top: 50%; transform: translate(16px, -50%); font-size: 0.82rem;
+    font-weight: 700; color: {DB_RED}; white-space: nowrap;
+}}
+.bp-axis {{ position: relative; height: 1.2rem; font-size: 0.75rem; color: {theme["muted"]}; }}
+.bp-axis span {{ position: absolute; transform: translateX(-50%); }}
+.bp-legend {{
+    display: flex; gap: 1.2rem; margin-left: 3.95rem; font-size: 0.8rem; color: {theme["ink"]};
+}}
+.bp-legend span {{ display: flex; align-items: center; gap: 0.4rem; }}
+.bp-key-dot, .bp-key-ref {{ width: 10px; height: 10px; border-radius: 50%; display: inline-block; }}
+.bp-key-dot {{ background: {DB_RED}; }}
+.bp-key-ref {{ border: 2.5px solid {ref_color}; width: 7px; height: 7px; }}
+</style>
+<div class="bp-chart">{"".join(lines)}{cancel_axis_html(scale, step, "3.95rem")}{legend}</div>
+{tooltip_assets()}
+"""
+
+
+def cancel_bars_html(rows: pd.DataFrame) -> str:
+    """Ranked bars of the cancelled share per item (train type, station or line), worst first.
+
+    `rows` holds item, stops, cancelled, cancelled_pct and a worst_week text for the tooltip.
+    """
+    theme = palette()
+    scale, step = cancel_ticks(rows["cancelled_pct"].tolist())
+    sheen = (
+        f"linear-gradient(180deg, {mix_color(DB_RED, '#FFFFFF', 0.18)} 0%, {DB_RED} 55%, "
+        f"{mix_color(DB_RED, DONUT_EDGE, 0.3)} 100%)"
+    )
+    name_width = "9.5rem" if rows["item"].str.len().max() > 6 else "3.2rem"
+    lines = []
+    for row in rows.itertuples():
+        tip = html.escape(
+            f"<b>{html.escape(row.item)}</b><br>{row.cancelled_pct:.1f}% of stops cancelled<br>"
+            f"{row.cancelled:,} of {row.stops:,} stops"
+            + (f"<br>Worst week: {html.escape(row.worst_week)}" if row.worst_week else "")
+        )
+        lines.append(
+            f'<div class="bp-row" data-tip="{tip}">'
+            f'<div class="bp-name" title="{html.escape(row.item)}">{html.escape(row.item)}</div>'
+            f'<div class="bp-track"><div class="bp-bar" '
+            f'style="width:{100 * row.cancelled_pct / scale:.2f}%"></div>'
+            f'<span class="bp-value">{row.cancelled_pct:.1f}%</span></div></div>'
+        )
+    return f"""
+<style>
+body {{
+    margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: {theme["ink"]};
+}}
+.bp-chart {{ display: flex; flex-direction: column; gap: 0.45rem; padding: 0.4rem 1.2rem 0 0; }}
+.bp-row {{ display: flex; align-items: center; gap: 0.75rem; }}
+.bp-name {{
+    width: {name_width}; text-align: right; font-size: 0.85rem; color: {theme["muted"]};
+    flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}}
+.bp-track {{ flex: 1; display: flex; align-items: center; gap: 0.5rem; height: 1.9rem; }}
+.bp-bar {{
+    height: 100%; background: {sheen}; border-radius: 0 6px 6px 0; min-width: 2px;
+    transition: filter 0.15s;
+}}
+.bp-row:hover .bp-bar {{ filter: brightness(1.12); }}
+.bp-value {{ font-size: 0.82rem; font-weight: 700; color: {DB_RED}; white-space: nowrap; }}
+.bp-axis {{ position: relative; height: 1.2rem; font-size: 0.75rem; color: {theme["muted"]};
+           margin-right: 0; }}
+.bp-axis span {{ position: absolute; transform: translateX(-50%); }}
+</style>
+<div class="bp-chart">{"".join(lines)}
+{cancel_axis_html(scale, step, f"calc({name_width} + 0.75rem)")}</div>
 {tooltip_assets()}
 """
 

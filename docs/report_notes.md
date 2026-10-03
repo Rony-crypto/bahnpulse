@@ -10,6 +10,13 @@ report's method and limitations sections rather than on the live page.
   (donut and bars) counts cancelled arrivals in its base, so its "on time" share is a little
   lower than the headline figure.
 - **Average arrival delay** is weighted by arrival volume across states, months and train types.
+- **Cancelled stops** are planned stops where the arrival or the departure was cancelled,
+  as a share of all planned stops. Germany and Hamburg use the same definition.
+- The cancellation charts leave out the mixed "Other" group (specials and replacement
+  services). Its rate is far higher, for example 28% in Hamburg and 78% at Hamburg Hbf, and
+  would squash the scale for the main train types.
+- In the Hamburg cancellation ranking, items with fewer than 100 stops are left out, and a
+  week needs at least 20 stops before it can be named the worst week.
 
 ## Comparing states
 

@@ -9,6 +9,7 @@ import streamlit as st
 
 from dbp.dashboard.charts import (
     MIN_HEATMAP_ARRIVALS,
+    cancel_dumbbell_html,
     delay_bars_html,
     delay_breakdown,
     delay_donut_html,
@@ -21,6 +22,7 @@ from dbp.dashboard.data import (
     MIN_STATION_ARRIVALS,
     headline_kpis,
     monthly_kpis,
+    summarize_cancellations,
     summarize_states,
     summarize_stations,
 )
@@ -281,6 +283,25 @@ def render_germany(
                 height=365,
             )
             st.caption("All train types side by side, whatever the train type filter")
+
+    with st.container(border=True, key="card_cancelled"):
+        st.subheader(f"Cancellations by train type · {scope}")
+        st.caption("Share of planned stops cancelled · every main train type, whatever the filter")
+        # "Other" (specials, replacement services) runs far above the rest and would squash
+        # the scale, so it is left out here.
+        rail_states = period_states.loc[period_states["train_group"] != "Other"]
+        cancelled = summarize_cancellations(
+            in_area(rail_states), "train_group", "planned_stop_count"
+        )
+        national = (
+            summarize_cancellations(rail_states, "train_group", "planned_stop_count")
+            if is_state
+            else None
+        )
+        st.iframe(
+            cancel_dumbbell_html(cancelled, national, scope),
+            height=42 * len(cancelled) + (60 if is_state else 36),
+        )
 
     with st.container(border=True, key="card_heatmap"):
         st.subheader(f"When are trains late? · {scope}")

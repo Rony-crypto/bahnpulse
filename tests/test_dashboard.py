@@ -1,7 +1,13 @@
 import pandas as pd
 
 from dbp.dashboard.charts import delay_breakdown
-from dbp.dashboard.data import headline_kpis, summarize_stations, summarize_weekly
+from dbp.dashboard.data import (
+    headline_kpis,
+    summarize_cancellations,
+    summarize_stations,
+    summarize_weekly,
+)
+from dbp.dashboard.hamburg import cancellation_table
 
 
 def test_summarize_weekly_weights_time_slots_by_delay_count():
@@ -108,3 +114,38 @@ def test_delay_breakdown_shares_add_up_per_train_type():
     assert by_type.groupby("train_group")["share_pct"].sum().round(6).eq(100).all()
     re_late = by_type.query("train_group == 'RE' and bucket == '6–15 min late'")
     assert re_late["share_pct"].iloc[0] == 20
+
+
+def test_summarize_cancellations_weights_by_stops_and_sorts_worst_first():
+    frame = pd.DataFrame(
+        {
+            "train_group": ["RE", "RE", "S", "ICE"],
+            "planned_stop_count": [100, 300, 200, 0],
+            "cancelled_stop_count": [10, 10, 2, 0],
+        }
+    )
+
+    cancelled = summarize_cancellations(frame, "train_group", "planned_stop_count")
+
+    assert cancelled["train_group"].tolist() == ["RE", "S"]
+    assert cancelled.loc[0, "cancelled_pct"] == 5
+    assert cancelled.loc[1, "cancelled_pct"] == 1
+
+
+def test_cancellation_table_names_worst_week_and_drops_small_items():
+    frame = pd.DataFrame(
+        {
+            "item_key": ["S1", "S1", "S1", "S9"],
+            "service_week": ["2026-01-05", "2026-01-12", "2026-01-19", "2026-01-05"],
+            "stop_count": [60, 30, 10, 50],
+            "cancelled_stop_count": [3, 6, 5, 1],
+        }
+    )
+
+    table = cancellation_table(frame)
+
+    assert table["item"].tolist() == ["S1"]
+    assert table.loc[0, "cancelled_pct"] == 14
+    # The 10-stop week has the highest share but too few stops to count.
+    assert table.loc[0, "worst_week"] == "week of 12 Jan 2026 (20%)"
+

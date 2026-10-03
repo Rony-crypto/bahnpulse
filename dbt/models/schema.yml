@@ -79,6 +79,9 @@ models:
       - name: service_week
         data_tests:
           - not_null
+      - name: cancelled_stop_count
+        data_tests:
+          - not_null
       - name: train_group
         data_tests:
           - accepted_values:

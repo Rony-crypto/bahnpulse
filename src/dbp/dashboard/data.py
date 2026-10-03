@@ -162,6 +162,16 @@ def summarize_months(frame: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
     return monthly
 
 
+def summarize_cancellations(frame: pd.DataFrame, key: str, stops: str) -> pd.DataFrame:
+    """Cancelled share of planned stops per `key`, most cancelled first."""
+    totals = frame.groupby(key, as_index=False).agg(
+        stops=(stops, "sum"), cancelled=("cancelled_stop_count", "sum")
+    )
+    totals = totals.loc[totals["stops"] > 0]
+    totals["cancelled_pct"] = 100 * totals["cancelled"] / totals["stops"]
+    return totals.sort_values("cancelled_pct", ascending=False).reset_index(drop=True)
+
+
 def summarize_weekly(frame: pd.DataFrame) -> pd.DataFrame:
     weekly = frame.groupby(["item_key", "service_week"], as_index=False).agg(
         stop_count=("stop_count", "sum"),
