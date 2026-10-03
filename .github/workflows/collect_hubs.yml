@@ -1,14 +1,13 @@
 name: collect_hubs
 
 # One-week reliability test of the near-real-time collector (S2) on the 6 Hamburg hubs.
-# Hourly (minute 7, away from GitHub's busy top of the hour): fchg plus plan for the current
+# Hourly (minute 7, away from the busy top of the hour): fchg plus plan for the current
 # and next two hours per hub. Raw XML (gzipped) and a per-run call log go to a private Hugging
-# Face dataset, since runners keep nothing between runs. GitHub may start scheduled runs late
-# or skip some: that is part of what this test measures, together with whether hourly fchg
-# snapshots miss delays of trains that passed between runs.
+# Face dataset, since runners keep nothing between runs. GitHub's own cron skipped most runs,
+# so an external cron (cron-job.org, "7 * * * *") triggers this via the workflow_dispatch API.
+# The test also measures whether hourly fchg snapshots miss delays of trains that passed
+# between runs.
 on:
-  schedule:
-    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions:
