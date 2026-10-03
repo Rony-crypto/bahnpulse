@@ -445,7 +445,7 @@ def monthly_trend(
                 mode="lines",
                 line={"width": 0, "shape": "spline", "smoothing": 0.6},
                 fill="tonexty",
-                fillcolor=rgba(color, 0.13),
+                fillcolor=rgba(color, 0.22),
                 name="Range across states",
                 hoverinfo="skip",
                 row=1,
@@ -462,18 +462,18 @@ def monthly_trend(
                 name="Germany" if single else f"{group} · Germany",
                 line={
                     "color": color,
-                    "width": 1.8,
+                    "width": 2.2,
                     "dash": "dot",
                     "shape": "spline",
                     "smoothing": 0.6,
                 },
-                opacity=0.75,
+                opacity=0.9,
                 hovertemplate="<b>%{fullData.name}</b><br>%{x|%b %Y}<br>"
                 "On time: %{y:.1f}%<extra></extra>",
                 row=1,
                 col=1,
             )
-            end_labels.append((national, color, 0.75))
+            end_labels.append((national, color, 0.9))
         change = line["punctuality_pct"].diff()
         range_text = [
             ""
@@ -556,7 +556,7 @@ def monthly_trend(
         y=delays["avg_arrival_delay_min"],
         name="Avg delay",
         showlegend=False,
-        marker={"color": rgba(DELAY_BUCKETS[2][2], 0.55), "cornerradius": 4},
+        marker={"color": rgba(DELAY_BUCKETS[3][2], 0.8), "cornerradius": 4},
         customdata=list(
             zip(delays["arrival_count"], gap_note(delays["service_month_label"]), strict=True)
         ),

@@ -25,8 +25,9 @@ THEME_COLORS = {
         "callout": "#FDF2F3",
         "shadow": "rgba(40, 45, 55, 0.08)",
         "categorical": ["#EC0016", "#1455C0", "#309FD1", "#814997", "#408335", "#878C96"],
-        # Monthly trend lines, in selection order: DB red, wine, rose, crimson, plum, blush.
-        "trend": ["#EC0016", "#851637", "#EC7F98", "#B71D47", "#7A4A68", "#D9A3B4"],
+        # Monthly trend lines, in selection order: DB red, dark red, crimson, raspberry,
+        # wine, plum.
+        "trend": ["#EC0016", "#9B000E", "#B71D47", "#DB4568", "#851637", "#7A4A68"],
     },
     "dark": {
         "ink": "#F0F3F5",
@@ -37,7 +38,7 @@ THEME_COLORS = {
         "callout": "#40303A",
         "shadow": "rgba(20, 22, 28, 0.35)",
         "categorical": ["#FF3B4A", "#73AEF0", "#55B9E6", "#B286C4", "#66A558", "#AFB4BB"],
-        "trend": ["#FF3B4A", "#F7A1B5", "#C2416A", "#FFD0DA", "#B286A8", "#E0607E"],
+        "trend": ["#FF3B4A", "#FF7A85", "#E0607E", "#C2416A", "#F7A1B5", "#B286A8"],
     },
 }
 # Delay buckets in one rose-to-wine family: blush (on time), rose, raspberry, crimson and
