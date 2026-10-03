@@ -75,13 +75,13 @@ minutes added):
 | Train type | Trips ending late | At the first station | Between stations | At stations |
 | --- | --- | --- | --- | --- |
 | ICE | 54% | 14% | 60% | 25% |
-| IC/EC | 48% | 17% | 61% | 22% |
-| RE | 26% | 25% | 39% | 37% |
-| RB | 16% | 25% | 31% | 44% |
-| S-Bahn | 14% | 19% | 31% | 50% |
+| IC/EC | 55% | 16% | 62% | 22% |
+| RE | 28% | 23% | 42% | 35% |
+| RB | 16% | 26% | 29% | 45% |
+| S-Bahn | 14% | 20% | 31% | 50% |
 
 Month to month the ICE share between stations stays between 57% and 65%, and the S-Bahn share
-at stations between 47% and 55%.
+at stations between 47% and 54%.
 
 **Recovery:** timetable buffers win back about 30% of the delay added (43% for the S-Bahn),
 but not enough to cancel it out.
@@ -91,9 +91,10 @@ but not enough to cancel it out.
 | Train type | First station | Halfway | Near the end (90%) | Last station |
 | --- | --- | --- | --- | --- |
 | ICE | 18% | 46% | 57% | 55% |
-| IC/EC | 13% | 40% | 52% | 50% |
-| RE | 11% | 22% | 28% | 28% |
-| S-Bahn | 5% | 11% | 14% | 14% |
+| IC/EC | 14% | 45% | 58% | 56% |
+| RE | 11% | 24% | 31% | 30% |
+| RB | 8% | 15% | 19% | 18% |
+| S-Bahn | 5% | 12% | 14% | 14% |
 
 The small improvement at the last station is the buffer timetables add before the end of a
 line.
@@ -118,6 +119,95 @@ Per train, Hannover (2.4 min, 76% of it on the way in) and Duisburg (2.1 min) st
   trips.
 - **Not comparable with DB's official figures one to one:** DB publishes punctuality for its
   own operations; this data covers every operator at every station in the source.
+
+## How trains are grouped into train types
+
+### In short
+
+Every train belongs to one of five groups: ICE, IC/EC (other long-distance), RE (Regional-
+Express, fewer stops), RB (Regionalbahn, all stops) and S-Bahn. The first version took the
+group from the train's raw code, which is often just the **company** that runs it. Many
+companies run both fast RE and slow RB trains, so about a quarter to a third of regional
+trains landed in the wrong group, and some regional trains were even counted as long-distance.
+Trains are now grouped by their **line name** (RE1, RB26, S3), which says what kind of service
+the train is. Only trains without a line name (ICE, IC, EC and a few others) still use the
+code.
+
+### What was wrong
+
+The raw `train_type` column mixes service names (ICE, IC, RE) with operator codes (HLB =
+Hessische Landesbahn, VIA, vlx = vlexx, SBH = S-Bahn Hannover). A hand-made seed
+(`dbt/seeds/train_type_map.csv`) gave each of its 221 codes one group. That cannot work for an
+operator that runs several kinds of service. Checking the seed against the line names in the
+data (May 2026):
+
+| Group (old) | Stops | Share on lines labelled as another group |
+| --- | --- | --- |
+| ICE | 192,347 | 0% (no line names) |
+| S-Bahn | 6.5 million | 0% |
+| IC/EC | 109,018 | 16% (trilex express TLX, lines RE1/RE2; Pressnitztalbahn PRE, line RB26) |
+| RE | 2.9 million | 34% (mostly labelled RB) |
+| RB | 4.5 million | 23% (labelled RE or S) |
+
+The clearest case: trilex express (TLX), a regional service Dresden – Görlitz / Zittau – Liberec
+run by Die Länderbahn, sat under IC/EC, probably because the "X" for express looked like a
+long-distance train. It made up 15% of IC/EC stops and made IC/EC look 4.4 points more
+punctual than it was (61.1% instead of 56.7% on time in May 2026).
+
+### Why the line name is the better rule
+
+German line names are set by the state transport authorities: RE for faster services with
+fewer stops, RB for services stopping everywhere. The data confirms that the label describes
+the service and not just the company. Within the same operator, RE-labelled trains stop less
+often than RB-labelled ones:
+
+| Operator | RB trains: median minutes between stops | RE trains |
+| --- | --- | --- |
+| HLB | 4 | 5 |
+| VIA | 4 | 6 |
+| vlexx | 4 | 9 |
+| OE | 5 | 6 |
+| ARV | 4 | 6 |
+
+TLX trains stop every 7 minutes, exactly like RE trains, and far more often than IC (17
+minutes) or EC (22 minutes).
+
+### The new rule
+
+1. A train with a line name starting RE, RB or S plus a number is grouped by it.
+2. Otherwise the seed decides (ICE, IC, EC, FlixTrain, night trains, trains with bare line
+   numbers).
+3. Rail replacement buses stay "Bus" even when they carry the replaced line's name.
+4. The seed itself was corrected for the 20 codes whose own trains contradict it on 90% or more
+   of labelled stops (for example TLX to RE, HLB to RB, SBH to S), so trains without a line
+   name also land correctly.
+
+In May 2026 this moved about 2 million stops: 965,000 from RE to RB, 547,000 from RB to RE,
+480,000 from RB to S-Bahn (S-Bahn Hannover and the Karlsruhe S-lines were filed as RB) and a
+few hundred from IC/EC to RE. ICE did not change. Afterwards no stop carries a line name that
+contradicts its group.
+
+### Effect on the results (all months, Nov 2025 – Sep 2026)
+
+| Train type | On time before | On time after | Cancelled after |
+| --- | --- | --- | --- |
+| ICE | 53.2% | 53.2% (unchanged) | 6.0% |
+| IC/EC | 59.3% | **53.7%** | 8.0% |
+| RE | 77.1% | 75.2% | 3.5% |
+| RB | 85.1% | 84.9% | 3.1% |
+| S-Bahn | 87.9% | 87.9% | 5.1% |
+
+IC/EC changes most: without the regional trains it is about as punctual as ICE, not 6 points
+better. The delay-spread findings hold: ICE and IC/EC still pick up about 60% of their delay
+between stations, the S-Bahn about half at stations, and the top 5% of stations still add 35%
+of delay minutes.
+
+**Guard against regressions:** the dbt test `assert_train_type_map_matches_lines` warns when
+a code's trains mostly run on lines of another group, so a new operator classified by guesswork
+is caught at the next build.
+
+**Limit:** RE and RB are set by each state, so the boundary is softer than between ICE and
+S-Bahn (for HLB the difference is only 5 versus 4 minutes between stops).
 
 ## Definitions
 

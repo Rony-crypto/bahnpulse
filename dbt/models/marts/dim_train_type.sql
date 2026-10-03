@@ -1,5 +1,7 @@
 {{ config(materialized='table') }}
 
+-- train_group here is the code's fallback group from the seed. A stop's own group can differ:
+-- when the train carries a line name (RE1, RB26, S3), that decides (see int_s1_classified).
 SELECT
     train_type AS train_type_key,
     train_type AS raw_type,

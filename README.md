@@ -43,7 +43,7 @@ S4 state shapes (Natural Earth) ───┘                         │
   train type, line, date and hour dimensions, and aggregate marts for the dashboard. The
   "where do delays start" marts are dbt Python models that rebuild trips one month at a time
   (`src/dbp/transform/delay_spread.py`).
-- **Tests:** 47 dbt data tests (keys, accepted values, full weeks, delay buckets adding up,
+- **Tests:** 48 dbt data tests (keys, accepted values, full weeks, delay buckets adding up,
   delay sources adding up to the final delay) and Python unit tests (`uv run pytest`).
 - **Automation:** the `monthly_history` GitHub workflow checks daily for a new source month,
   rebuilds, tests and publishes the marts.
@@ -57,6 +57,9 @@ S4 state shapes (Natural Earth) ───┘                         │
   the station it no longer reached. Counting "arrival or departure cancelled" counts a
   cut-short trip twice; counting only fully cancelled stops misses trains that start late on
   their route.
+- **Train types follow the line name** (RE1, RB26, S3), not the operator code. One operator
+  often runs both RE and RB lines, so grouping by code misfiled about a quarter to a third of
+  regional trains; a dbt test now flags codes whose trains contradict their mapping.
 - **Trips are rebuilt from stop events,** because the source has no trip id. Only trips from
   their true first to their true last station are used to split delay, and the split is
   checked to account for every minute.
