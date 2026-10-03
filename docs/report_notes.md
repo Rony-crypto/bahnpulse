@@ -44,6 +44,16 @@ planned?" The choice changes rates by only 0.2 to 1.1 points and leaves the orde
 types almost unchanged, but it gives the most accurate picture. For Hamburg ICE the old "arrival
 or departure" method gave 8.0%; counting arrivals gives 7.4%.
 
+## Hamburg page vs Germany page
+
+The Hamburg page compares train types **at one station** (Hamburg Hbf by default), so that
+all types share the same platforms, traffic and disruptions. ICE serves only 4 Hamburg
+stations while the S-Bahn serves about 60, so adding up all stations would compare unlike
+networks. The Germany page, filtered to Hamburg, adds up every Hamburg station instead,
+so its figures differ: IC/EC cancellations are 8.8% for all of Hamburg but 10.3% at Hamburg
+Hbf (Dammtor 6.7%, Harburg 6.5%). The Hamburg page also uses full weeks only, which drops
+a few days at each end of the period.
+
 ## Hamburg ICE cancellations
 
 Hamburg's ICE cancellation rate (7.4%) is above Germany's (6.0%). The breakdown shows why:

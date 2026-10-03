@@ -237,5 +237,12 @@ def render_hamburg(hamburg_frame: pd.DataFrame, month_range: tuple[str, str]) ->
                     if len(table) > len(shown)
                     else ""
                 )
+                # Train types are compared at one station so they share the same platforms
+                # and disruptions; the Germany page adds up all Hamburg stations instead.
+                + (
+                    f" · {selected_hub} only, so figures differ from the Germany page"
+                    if item_kind == "train_type" and selected_hub
+                    else ""
+                )
             )
             st.iframe(cancel_bars_html(shown, "Worst week"), height=40 * len(shown) + 34)
