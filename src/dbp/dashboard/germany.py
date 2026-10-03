@@ -52,11 +52,9 @@ def select_ranked_state(key: str) -> None:
 
 def train_type_cancellations(frame: pd.DataFrame) -> pd.DataFrame:
     """Cancelled share per train type, most cancelled first, with its worst month."""
-    table = summarize_cancellations(frame, "train_group", "planned_stop_count")
+    table = summarize_cancellations(frame, "train_group")
     monthly = summarize_cancellations(
-        frame.assign(key=frame["train_group"] + "|" + frame["service_month_label"]),
-        "key",
-        "planned_stop_count",
+        frame.assign(key=frame["train_group"] + "|" + frame["service_month_label"]), "key"
     )
     monthly[["train_group", "month"]] = monthly["key"].str.split("|", expand=True)
     worst = monthly.drop_duplicates("train_group").set_index("train_group")
@@ -162,7 +160,7 @@ def render_germany(
          ":material/schedule:"),
         (metric_columns[1], "Average arrival delay", "delay", " min", " min", False,
          ":material/timer:"),
-        (metric_columns[2], "Cancelled stops", "cancelled", "%", " pts", False,
+        (metric_columns[2], "Cancelled arrivals", "cancelled", "%", " pts", False,
          ":material/cancel:"),
     ):
         value = shown[key]
@@ -306,13 +304,15 @@ def render_germany(
 
     with st.container(border=True, key="card_cancelled"):
         st.subheader(f"Cancellations by train type · {scope}")
-        st.caption("Share of planned stops cancelled · every main train type, whatever the filter")
+        st.caption(
+            "Share of planned arrivals cancelled · every main train type, whatever the filter"
+        )
         # "Other" (specials, replacement services) runs far above the rest and would squash
         # the scale, so it is left out here.
         rail_states = period_states.loc[period_states["train_group"] != "Other"]
         cancelled = train_type_cancellations(in_area(rail_states))
         if is_state:
-            national = summarize_cancellations(rail_states, "train_group", "planned_stop_count")
+            national = summarize_cancellations(rail_states, "train_group")
             cancelled["ref_pct"] = cancelled["item"].map(
                 national.set_index("train_group")["cancelled_pct"]
             )

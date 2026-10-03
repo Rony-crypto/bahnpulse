@@ -43,17 +43,17 @@ def test_summarize_stations_sorts_worst_first_and_keeps_zero_arrivals_last():
     frame = pd.DataFrame(
         [
             {"station_name": "A", "federal_state": "Hamburg",
-             "planned_stop_count": 100, "arrival_count": 100,
-             "on_time_arrival_count": 90, "cancelled_stop_count": 5},
+             "planned_stop_count": 100, "arrival_count": 95,
+             "on_time_arrival_count": 86, "cancelled_arrival_count": 5},
             {"station_name": "A", "federal_state": "Hamburg",
-             "planned_stop_count": 100, "arrival_count": 100,
-             "on_time_arrival_count": 70, "cancelled_stop_count": 5},
+             "planned_stop_count": 100, "arrival_count": 95,
+             "on_time_arrival_count": 66, "cancelled_arrival_count": 5},
             {"station_name": "B", "federal_state": "Hamburg",
              "planned_stop_count": 50, "arrival_count": 50,
-             "on_time_arrival_count": 25, "cancelled_stop_count": 0},
+             "on_time_arrival_count": 25, "cancelled_arrival_count": 0},
             {"station_name": "C", "federal_state": "Bayern",
              "planned_stop_count": 4, "arrival_count": 0,
-             "on_time_arrival_count": 0, "cancelled_stop_count": 4},
+             "on_time_arrival_count": 0, "cancelled_arrival_count": 4},
         ]
     )
 
@@ -68,9 +68,9 @@ def test_summarize_stations_sorts_worst_first_and_keeps_zero_arrivals_last():
 def test_headline_kpis_weights_states_by_volume():
     summary = pd.DataFrame(
         [
-            {"planned_stop_count": 100, "cancelled_stop_count": 10, "arrival_count": 80,
+            {"planned_stop_count": 100, "cancelled_arrival_count": 90, "arrival_count": 80,
              "on_time_arrival_count": 40, "avg_arrival_delay_min": 10.0},
-            {"planned_stop_count": 300, "cancelled_stop_count": 2, "arrival_count": 320,
+            {"planned_stop_count": 300, "cancelled_arrival_count": 10, "arrival_count": 320,
              "on_time_arrival_count": 288, "avg_arrival_delay_min": 2.5},
         ]
     )
@@ -79,13 +79,14 @@ def test_headline_kpis_weights_states_by_volume():
 
     assert kpis["punctuality"] == 82
     assert kpis["delay"] == 4
-    assert kpis["cancelled"] == 3
+    # Cancelled share of planned arrivals: 100 cancelled of 500 planned.
+    assert kpis["cancelled"] == 20
     assert kpis["stops"] == 400
 
 
 def test_headline_kpis_handles_empty_selection():
     empty = pd.DataFrame(
-        columns=["planned_stop_count", "cancelled_stop_count", "arrival_count",
+        columns=["planned_stop_count", "cancelled_arrival_count", "arrival_count",
                  "on_time_arrival_count", "avg_arrival_delay_min"]
     )
 
@@ -116,16 +117,16 @@ def test_delay_breakdown_shares_add_up_per_train_type():
     assert re_late["share_pct"].iloc[0] == 20
 
 
-def test_summarize_cancellations_weights_by_stops_and_sorts_worst_first():
+def test_summarize_cancellations_uses_planned_arrivals_and_sorts_worst_first():
     frame = pd.DataFrame(
         {
             "train_group": ["RE", "RE", "S", "ICE"],
-            "planned_stop_count": [100, 300, 200, 0],
-            "cancelled_stop_count": [10, 10, 2, 0],
+            "arrival_count": [90, 290, 198, 0],
+            "cancelled_arrival_count": [10, 10, 2, 0],
         }
     )
 
-    cancelled = summarize_cancellations(frame, "train_group", "planned_stop_count")
+    cancelled = summarize_cancellations(frame, "train_group")
 
     assert cancelled["train_group"].tolist() == ["RE", "S"]
     assert cancelled.loc[0, "cancelled_pct"] == 5
@@ -137,8 +138,8 @@ def test_cancellation_table_names_worst_week_and_drops_small_items():
         {
             "item_key": ["S1", "S1", "S1", "S9"],
             "service_week": ["2026-01-05", "2026-01-12", "2026-01-19", "2026-01-05"],
-            "stop_count": [60, 30, 10, 50],
-            "cancelled_stop_count": [3, 6, 5, 1],
+            "arrival_count": [57, 24, 5, 49],
+            "cancelled_arrival_count": [3, 6, 5, 1],
         }
     )
 
@@ -146,6 +147,6 @@ def test_cancellation_table_names_worst_week_and_drops_small_items():
 
     assert table["item"].tolist() == ["S1"]
     assert table.loc[0, "cancelled_pct"] == 14
-    # The 10-stop week has the highest share but too few stops to count.
+    # The 10-arrival week has the highest share but too few arrivals to count.
     assert table.loc[0, "worst"] == "week of 12 Jan 2026 (20%)"
 

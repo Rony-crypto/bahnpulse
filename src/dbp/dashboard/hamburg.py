@@ -21,19 +21,20 @@ from dbp.dashboard.theme import group_colors, hover_label, palette
 LINE_FAMILIES = {"S-Bahn": r"S\d+", "RE": r"RE\d+", "RB": r"RB\d+"}
 # The cancellation ranking lists at most this many items (stations run to dozens).
 MAX_CANCEL_ROWS = 10
-# A week needs this many stops before it can be named the worst week.
-MIN_WEEK_STOPS = 20
+# A week needs this many planned arrivals before it can be named the worst week.
+MIN_WEEK_ARRIVALS = 20
 
 
 def cancellation_table(frame: pd.DataFrame) -> pd.DataFrame:
     """Cancelled share per item, most cancelled first, with its worst week for the tooltip."""
-    table = summarize_cancellations(frame, "item_key", "stop_count")
-    table = table.loc[table["stops"] >= MIN_STATION_ARRIVALS]
+    table = summarize_cancellations(frame, "item_key")
+    table = table.loc[table["planned"] >= MIN_STATION_ARRIVALS]
     weekly = frame.groupby(["item_key", "service_week"], as_index=False)[
-        ["stop_count", "cancelled_stop_count"]
+        ["arrival_count", "cancelled_arrival_count"]
     ].sum()
-    weekly = weekly.loc[weekly["stop_count"] >= MIN_WEEK_STOPS]
-    weekly["pct"] = 100 * weekly["cancelled_stop_count"] / weekly["stop_count"]
+    weekly["planned"] = weekly["arrival_count"] + weekly["cancelled_arrival_count"]
+    weekly = weekly.loc[weekly["planned"] >= MIN_WEEK_ARRIVALS]
+    weekly["pct"] = 100 * weekly["cancelled_arrival_count"] / weekly["planned"]
     worst = weekly.loc[weekly.groupby("item_key")["pct"].idxmax()].set_index("item_key")
     table["worst"] = [
         f"week of {pd.Timestamp(worst.loc[item, 'service_week']):%-d %b %Y} "
@@ -221,15 +222,15 @@ def render_hamburg(hamburg_frame: pd.DataFrame, month_range: tuple[str, str]) ->
         "line": f"{family} lines",
     }[item_kind]
     with st.container(border=True, key="card_hamburg_cancelled"):
-        st.subheader(f"Cancelled stops · {context}")
+        st.subheader(f"Cancelled arrivals · {context}")
         # As on the Germany page, the mixed "Other" group stays out of the ranking.
         table = cancellation_table(hamburg.loc[hamburg["train_group"] != "Other"])
         if table.empty:
-            st.info("Not enough stops to compare cancellations for these filters.")
+            st.info("Not enough arrivals to compare cancellations for these filters.")
         else:
             shown = table.head(MAX_CANCEL_ROWS)
             st.caption(
-                "Share of planned stops cancelled · most cancelled first"
+                "Share of planned arrivals cancelled · most cancelled first"
                 + ("" if selected_slot == "All day" else f" · {selected_slot.lower()}")
                 + (
                     f" · top {len(shown)} of {len(table)}"

@@ -72,6 +72,13 @@ def load_states() -> dict:
         return json.load(source)
 
 
+def cancelled_share(cancelled: pd.Series, arrivals: pd.Series) -> pd.Series:
+    """Cancelled share of planned arrivals (cancelled + ran). Counting arrivals counts each
+    lost train once, at the station it no longer reached (see docs/report_notes.md)."""
+    planned = (cancelled + arrivals).replace(0, pd.NA)
+    return 100 * cancelled / planned
+
+
 def format_months(frame: pd.DataFrame, column: str) -> pd.Series:
     return pd.to_datetime(frame[column]).dt.strftime("%Y-%m")
 
@@ -79,7 +86,7 @@ def format_months(frame: pd.DataFrame, column: str) -> pd.Series:
 def summarize_states(frame: pd.DataFrame) -> pd.DataFrame:
     summary = frame.groupby("federal_state", as_index=False).agg(
         planned_stop_count=("planned_stop_count", "sum"),
-        cancelled_stop_count=("cancelled_stop_count", "sum"),
+        cancelled_arrival_count=("cancelled_arrival_count", "sum"),
         arrival_count=("arrival_count", "sum"),
         on_time_arrival_count=("on_time_arrival_count", "sum"),
     )
@@ -89,10 +96,8 @@ def summarize_states(frame: pd.DataFrame) -> pd.DataFrame:
     summary["punctuality_pct"] = (
         100 * summary["on_time_arrival_count"] / summary["arrival_count"].replace(0, pd.NA)
     )
-    summary["cancellation_pct"] = (
-        100
-        * summary["cancelled_stop_count"]
-        / summary["planned_stop_count"].replace(0, pd.NA)
+    summary["cancellation_pct"] = cancelled_share(
+        summary["cancelled_arrival_count"], summary["arrival_count"]
     )
     summary["avg_arrival_delay_min"] = (
         summary["federal_state"].map(delay_totals)
@@ -107,15 +112,13 @@ def summarize_stations(frame: pd.DataFrame) -> pd.DataFrame:
         planned_stop_count=("planned_stop_count", "sum"),
         arrival_count=("arrival_count", "sum"),
         on_time_arrival_count=("on_time_arrival_count", "sum"),
-        cancelled_stop_count=("cancelled_stop_count", "sum"),
+        cancelled_arrival_count=("cancelled_arrival_count", "sum"),
     )
     stations["punctuality_pct"] = (
         100 * stations["on_time_arrival_count"] / stations["arrival_count"].replace(0, pd.NA)
     )
-    stations["cancellation_pct"] = (
-        100
-        * stations["cancelled_stop_count"]
-        / stations["planned_stop_count"].replace(0, pd.NA)
+    stations["cancellation_pct"] = cancelled_share(
+        stations["cancelled_arrival_count"], stations["arrival_count"]
     )
     return stations.sort_values("punctuality_pct", na_position="last").reset_index(drop=True)
 
@@ -125,12 +128,15 @@ def headline_kpis(summary: pd.DataFrame) -> dict[str, float]:
     arrivals = summary["arrival_count"].sum()
     stops = summary["planned_stop_count"].sum()
     delay_total = (summary["avg_arrival_delay_min"] * summary["arrival_count"]).sum()
+    cancelled = summary["cancelled_arrival_count"].sum()
     return {
         "punctuality": (
             100 * summary["on_time_arrival_count"].sum() / arrivals if arrivals else math.nan
         ),
         "delay": delay_total / arrivals if arrivals else math.nan,
-        "cancelled": 100 * summary["cancelled_stop_count"].sum() / stops if stops else math.nan,
+        "cancelled": (
+            100 * cancelled / (cancelled + arrivals) if cancelled + arrivals else math.nan
+        ),
         "stops": int(stops),
     }
 
@@ -162,13 +168,14 @@ def summarize_months(frame: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
     return monthly
 
 
-def summarize_cancellations(frame: pd.DataFrame, key: str, stops: str) -> pd.DataFrame:
-    """Cancelled share of planned stops per `key`, most cancelled first."""
+def summarize_cancellations(frame: pd.DataFrame, key: str) -> pd.DataFrame:
+    """Cancelled share of planned arrivals per `key`, most cancelled first."""
     totals = frame.groupby(key, as_index=False).agg(
-        stops=(stops, "sum"), cancelled=("cancelled_stop_count", "sum")
+        cancelled=("cancelled_arrival_count", "sum"), ran=("arrival_count", "sum")
     )
-    totals = totals.loc[totals["stops"] > 0]
-    totals["cancelled_pct"] = 100 * totals["cancelled"] / totals["stops"]
+    totals["planned"] = totals["cancelled"] + totals["ran"]
+    totals = totals.loc[totals["planned"] > 0].drop(columns="ran")
+    totals["cancelled_pct"] = 100 * totals["cancelled"] / totals["planned"]
     return totals.sort_values("cancelled_pct", ascending=False).reset_index(drop=True)
 
 

@@ -294,7 +294,7 @@ def cancel_bars_html(
 ) -> str:
     """Ranked bars of the cancelled share per item (train type, station or line), worst first.
 
-    `rows` holds item, stops, cancelled, cancelled_pct and a `worst` text (worst week or
+    `rows` holds item, planned, cancelled, cancelled_pct and a `worst` text (worst week or
     month) for the tooltip. With `reference` (e.g. "Germany"), a ref_pct column is drawn as
     a marker on each bar so a state can be read against the national rate.
     """
@@ -312,8 +312,8 @@ def cancel_bars_html(
     for row in rows.itertuples():
         title = f"{row.item} · {scope}" if scope else row.item
         tip = (
-            f"<b>{html.escape(title)}</b><br>{row.cancelled_pct:.1f}% of stops cancelled<br>"
-            f"{row.cancelled:,} of {row.stops:,} stops"
+            f"<b>{html.escape(title)}</b><br>{row.cancelled_pct:.1f}% of arrivals cancelled<br>"
+            f"{row.cancelled:,} of {row.planned:,} planned arrivals"
         )
         marker = ""
         if has_ref and not pd.isna(row.ref_pct):
