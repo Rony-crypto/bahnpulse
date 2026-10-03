@@ -35,7 +35,7 @@ def cancellation_table(frame: pd.DataFrame) -> pd.DataFrame:
     weekly = weekly.loc[weekly["stop_count"] >= MIN_WEEK_STOPS]
     weekly["pct"] = 100 * weekly["cancelled_stop_count"] / weekly["stop_count"]
     worst = weekly.loc[weekly.groupby("item_key")["pct"].idxmax()].set_index("item_key")
-    table["worst_week"] = [
+    table["worst"] = [
         f"week of {pd.Timestamp(worst.loc[item, 'service_week']):%-d %b %Y} "
         f"({worst.loc[item, 'pct']:.0f}%)"
         if item in worst.index and worst.loc[item, "pct"] > 0
@@ -237,4 +237,4 @@ def render_hamburg(hamburg_frame: pd.DataFrame, month_range: tuple[str, str]) ->
                     else ""
                 )
             )
-            st.iframe(cancel_bars_html(shown), height=40 * len(shown) + 34)
+            st.iframe(cancel_bars_html(shown, "Worst week"), height=40 * len(shown) + 34)

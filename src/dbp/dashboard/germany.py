@@ -9,7 +9,7 @@ import streamlit as st
 
 from dbp.dashboard.charts import (
     MIN_HEATMAP_ARRIVALS,
-    cancel_dumbbell_html,
+    cancel_bars_html,
     delay_bars_html,
     delay_breakdown,
     delay_donut_html,
@@ -48,6 +48,26 @@ def select_ranked_state(key: str) -> None:
     order = st.session_state.get("ranking_order", [])
     if rows and rows[0] < len(order):
         st.session_state["area"] = order[rows[0]]
+
+
+def train_type_cancellations(frame: pd.DataFrame) -> pd.DataFrame:
+    """Cancelled share per train type, most cancelled first, with its worst month."""
+    table = summarize_cancellations(frame, "train_group", "planned_stop_count")
+    monthly = summarize_cancellations(
+        frame.assign(key=frame["train_group"] + "|" + frame["service_month_label"]),
+        "key",
+        "planned_stop_count",
+    )
+    monthly[["train_group", "month"]] = monthly["key"].str.split("|", expand=True)
+    worst = monthly.drop_duplicates("train_group").set_index("train_group")
+    table["worst"] = [
+        f"{pd.Period(worst.loc[group, 'month']).strftime('%b %Y')} "
+        f"({worst.loc[group, 'cancelled_pct']:.1f}%)"
+        if group in worst.index
+        else ""
+        for group in table["train_group"]
+    ]
+    return table.rename(columns={"train_group": "item"})
 
 
 def render_germany(
@@ -290,17 +310,17 @@ def render_germany(
         # "Other" (specials, replacement services) runs far above the rest and would squash
         # the scale, so it is left out here.
         rail_states = period_states.loc[period_states["train_group"] != "Other"]
-        cancelled = summarize_cancellations(
-            in_area(rail_states), "train_group", "planned_stop_count"
-        )
-        national = (
-            summarize_cancellations(rail_states, "train_group", "planned_stop_count")
-            if is_state
-            else None
-        )
+        cancelled = train_type_cancellations(in_area(rail_states))
+        if is_state:
+            national = summarize_cancellations(rail_states, "train_group", "planned_stop_count")
+            cancelled["ref_pct"] = cancelled["item"].map(
+                national.set_index("train_group")["cancelled_pct"]
+            )
         st.iframe(
-            cancel_dumbbell_html(cancelled, national, scope),
-            height=42 * len(cancelled) + (60 if is_state else 36),
+            cancel_bars_html(
+                cancelled, "Worst month", "Germany" if is_state else None, scope
+            ),
+            height=40 * len(cancelled) + (64 if is_state else 34),
         )
 
     with st.container(border=True, key="card_heatmap"):

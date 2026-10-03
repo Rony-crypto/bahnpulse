@@ -35,6 +35,8 @@ def store_month_range() -> None:
 
 
 def render_dashboard(view: str) -> None:
+    # Repeated per page: the layout set in main() does not carry into st.navigation pages.
+    st.set_page_config(layout="wide")
     st.markdown(app_css(), unsafe_allow_html=True)
     st.html(PLOTLY_HOVER_FOLLOW_JS, unsafe_allow_javascript=True)
     st.html(THEME_SYNC_JS, unsafe_allow_javascript=True)

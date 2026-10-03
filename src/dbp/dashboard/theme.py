@@ -215,6 +215,12 @@ def app_css() -> str:
   background: {colors["card"]}; border: none !important; border-radius: 16px;
   box-shadow: 0 4px 22px {colors["shadow"]}; padding: 1rem 1.1rem;
 }}
+/* Map and ranking cards share a row: stretch both to the taller one so their edges line
+   up, and center the map in the spare height. */
+[data-testid="stLayoutWrapper"]:has(> .st-key-card_map),
+[data-testid="stLayoutWrapper"]:has(> .st-key-card_ranking) {{ flex: 1 1 auto; }}
+.st-key-card_map, .st-key-card_ranking {{ height: 100%; }}
+.st-key-card_map {{ justify-content: space-between; }}
 /* The "Lowest" callout inside the ranking card gets a soft red tint */
 [class*="st-key-callout_"] {{
   background: {colors["callout"]}; border: none !important; border-radius: 12px;

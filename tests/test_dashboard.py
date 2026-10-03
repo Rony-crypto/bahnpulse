@@ -147,5 +147,5 @@ def test_cancellation_table_names_worst_week_and_drops_small_items():
     assert table["item"].tolist() == ["S1"]
     assert table.loc[0, "cancelled_pct"] == 14
     # The 10-stop week has the highest share but too few stops to count.
-    assert table.loc[0, "worst_week"] == "week of 12 Jan 2026 (20%)"
+    assert table.loc[0, "worst"] == "week of 12 Jan 2026 (20%)"
 
