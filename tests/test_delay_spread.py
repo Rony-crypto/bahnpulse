@@ -16,6 +16,7 @@ def stop(ride, num, station, arrive, depart, arrival_delay, departure_delay, **f
     start = datetime(2026, 5, 4, 8)
     at = lambda minutes: start + timedelta(minutes=minutes) if minutes is not None else None  # noqa: E731
     return {
+        "stop_event_id": f"{ride}-{num}-{arrive}-{depart}",
         "station_key": station,
         "train_group": flags.get("group", "ICE"),
         "service_month": datetime(2026, 5, 1).date(),

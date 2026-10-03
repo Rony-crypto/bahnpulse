@@ -24,6 +24,7 @@ import pandas as pd
 TRIP_STOP_SQL = """
 WITH stops AS (
     SELECT
+        stop_event_id,
         station_key,
         train_group,
         service_month,
@@ -56,13 +57,16 @@ trip_breaks AS (
             ELSE 0
         END AS starts_new_trip
     FROM stops
-    WINDOW ride_order AS (PARTITION BY ride_id ORDER BY planned_time, stop_num)
+    -- stop_event_id breaks ties between duplicate records (same ride, stop and time), so
+    -- every run orders them the same way and gives identical results.
+    WINDOW ride_order AS (PARTITION BY ride_id ORDER BY planned_time, stop_num, stop_event_id)
 ),
 trips AS (
     SELECT
         *,
         sum(starts_new_trip) OVER (
-            PARTITION BY ride_id ORDER BY planned_time, stop_num ROWS UNBOUNDED PRECEDING
+            PARTITION BY ride_id ORDER BY planned_time, stop_num, stop_event_id
+            ROWS UNBOUNDED PRECEDING
         ) AS trip_seq
     FROM trip_breaks
 ),
@@ -100,10 +104,10 @@ with_previous AS (
         ) OVER whole_trip AS fully_observed
     FROM lateness
     WINDOW
-        trip_order AS (PARTITION BY ride_id, trip_seq ORDER BY stop_num),
+        trip_order AS (PARTITION BY ride_id, trip_seq ORDER BY stop_num, stop_event_id),
         whole_trip AS (PARTITION BY ride_id, trip_seq),
         whole_trip_ordered AS (
-            PARTITION BY ride_id, trip_seq ORDER BY stop_num
+            PARTITION BY ride_id, trip_seq ORDER BY stop_num, stop_event_id
             ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         )
 )
