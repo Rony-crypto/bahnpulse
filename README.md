@@ -37,7 +37,7 @@ uv run python -m dbp.ingest.download_s3
 uv run python -m dbp.profile.profile_s1
 uv run dbt build --project-dir dbt --profiles-dir dbt
 uv run python -m dbp.publish.export_marts
-uv run streamlit run src/dbp/app.py
+uv run streamlit run src/dbp/bahnpulse_app.py
 ```
 
 Other week-1 scripts:
@@ -49,7 +49,7 @@ Other week-1 scripts:
 | `uv run python -m dbp.ingest.find_eva --write` | Looks up EVA numbers for the hubs in `config/hubs.yml` |
 | `uv run dbt build --project-dir dbt --profiles-dir dbt` | Builds and tests local DuckDB models and aggregate marts |
 | `uv run python -m dbp.publish.export_marts` | Exports aggregate Parquet marts and freshness metadata |
-| `uv run streamlit run src/dbp/app.py` | Launches the historical dashboard at `http://localhost:8501` |
+| `uv run streamlit run src/dbp/bahnpulse_app.py` | Launches the historical dashboard at `http://localhost:8501` |
 | `uv run pytest` | Runs the unit tests |
 
 ## Roadmap

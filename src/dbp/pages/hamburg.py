@@ -1,3 +1,3 @@
-from dbp.app import render_dashboard
+from dbp.bahnpulse_app import render_dashboard
 
 render_dashboard("Hamburg")
