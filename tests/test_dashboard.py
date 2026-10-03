@@ -1,6 +1,7 @@
 import pandas as pd
 
-from dbp.app import delay_breakdown, headline_kpis, summarize_stations, summarize_weekly
+from dbp.dashboard.charts import delay_breakdown
+from dbp.dashboard.data import headline_kpis, summarize_stations, summarize_weekly
 
 
 def test_summarize_weekly_weights_time_slots_by_delay_count():
