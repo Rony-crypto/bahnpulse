@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-10-03T18:35:10.582153+00:00",
+  "built_at": "2026-10-03T19:16:46.417272+00:00",
   "event_month_start": "2025-11-01",
   "event_month_end": "2026-09-01",
   "source_month_start": "2025-11",
@@ -15,7 +15,7 @@
     "agg_delay_along_route": 605
   },
   "dbt": {
-    "run_at": "2026-10-03T18:35:05.669056Z",
+    "run_at": "2026-10-03T19:16:43.874755Z",
     "tests_passed": 48,
     "tests_failed": 0,
     "tests_warned": 0,
