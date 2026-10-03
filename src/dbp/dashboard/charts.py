@@ -667,7 +667,7 @@ def monthly_trend(
                 mode="lines",
                 line={"width": 0, "shape": "spline", "smoothing": 0.6},
                 fill="tonexty",
-                fillcolor=rgba(color, 0.22),
+                fillcolor=rgba(color, 0.12),
                 name="Range across states",
                 hoverinfo="skip",
                 row=1,
@@ -778,7 +778,12 @@ def monthly_trend(
         y=delays["avg_arrival_delay_min"],
         name="Avg delay",
         showlegend=False,
-        marker={"color": rgba(DELAY_BUCKETS[3][2], 0.8), "cornerradius": 4},
+        # Same DB red as the cancellation bars, with a darker edge for a similar sheen.
+        marker={
+            "color": DB_RED,
+            "cornerradius": 4,
+            "line": {"color": mix_color(DB_RED, DONUT_EDGE, 0.3), "width": 1},
+        },
         customdata=list(
             zip(delays["arrival_count"], gap_note(delays["service_month_label"]), strict=True)
         ),
