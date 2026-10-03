@@ -4,8 +4,10 @@ Germany-wide Deutsche Bahn punctuality: monthly history for all stations, a 15-m
 for ~35 hubs, a tested dbt model, a public Streamlit app with a state map and a Hamburg deep dive,
 and an AI layer that answers questions in English or German with validated SQL.
 
-> Current slice: tested historical marts and a local Streamlit dashboard. See the roadmap below
-> for collector and AI milestones.
+**Live dashboard:** [bahnpulse.streamlit.app](https://bahnpulse.streamlit.app/?embed=true)
+
+> Current slice: tested historical marts and the public Streamlit dashboard. See the roadmap
+> below for collector and AI milestones.
 
 ## Questions this project answers
 
