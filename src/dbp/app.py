@@ -17,7 +17,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v1 as components
 
 from dbp.config import DATA, ROOT
 
@@ -733,12 +732,12 @@ def render_germany(
         donut_column, bars_column = st.columns([1, 1.6])
         with donut_column:
             # Iframes keep the SVG (st.html strips it) and the cursor-following tooltips.
-            components.html(delay_donut_html(delay_breakdown(in_area(selected_states))), height=430)
+            st.iframe(delay_donut_html(delay_breakdown(in_area(selected_states))), height=430)
         with bars_column:
             period_states = state_frame.loc[
                 state_frame["service_month_label"].between(first_month, last_month)
             ]
-            components.html(
+            st.iframe(
                 delay_bars_html(delay_breakdown(in_area(period_states), by="train_group")),
                 height=365,
             )
