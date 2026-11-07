@@ -226,9 +226,10 @@ def app_css() -> str:
   background: {colors["callout"]}; border: none !important; border-radius: 12px;
   padding: 0.6rem 0.9rem;
 }}
-/* Floating "Ask AI" chat (dbp.dashboard.chat): a round DB red button, bottom right */
+/* Floating "Ask AI" chat (dbp.dashboard.chat): a round DB red button, bottom right, above
+   the badge Streamlit Community Cloud puts in the corner */
 .st-key-bp_chat {{
-  position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 999; width: auto !important;
+  position: fixed; right: 1.5rem; bottom: 4.5rem; z-index: 999; width: auto !important;
 }}
 .st-key-bp_chat button {{
   border: none; border-radius: 999px; padding: 0.55rem 1.1rem;
