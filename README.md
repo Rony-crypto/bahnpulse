@@ -67,16 +67,17 @@ S4 state shapes (Natural Earth) ───┘                         │
 
 ## Ask the data (AI)
 
-The dashboard's "Ask the data" page answers questions in English or German, including ones
-nobody asked before ("Which Bavarian station added the most S-Bahn delay?").
+The dashboard's floating "Ask AI" chat (bottom right, on every page) answers questions in
+English or German, including ones nobody asked before ("Which Bavarian station added the
+most S-Bahn delay?").
 
 1. An LLM turns the question into one DuckDB query over six documented views of the published
    marts, or declines when the data cannot answer (causes, weather, prices, the future).
 2. The query is checked (a single SELECT on the known views, no table functions) and runs in
    an in-memory sandbox with file and network access switched off, a time limit and a row cap.
 3. A failing query goes back to the model once with the error.
-4. The model writes a short answer from the result rows only; the page shows the SQL and the
-   table so every number can be checked.
+4. The model writes a short answer from the result rows only; the chat shows the SQL so every
+   number can be checked.
 
 **The database computes every number, never the model.** Providers are tried in order: Groq's
 free plan (gpt-oss-120b, then Qwen 3.8 and gpt-oss-20b, each with its own daily allowance),

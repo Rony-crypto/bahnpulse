@@ -313,7 +313,7 @@ the trend tooltip marks them as incomplete months.
 Visitors ask in English or German; the answer comes from a database query the model writes,
 not from the model's memory. A language model has never seen these 160 million stop records,
 so asked directly it would guess. Here it only writes SQL; DuckDB computes the numbers; the
-model then phrases a short answer from the result rows, and the page shows the SQL and table.
+model then phrases a short answer from the result rows, and the chat shows the SQL.
 
 ### Safety layers
 
