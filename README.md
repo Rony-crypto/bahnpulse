@@ -1,11 +1,19 @@
 # BahnPulse: where Deutsche Bahn delays come from
 
+[![CI](https://github.com/Rony-crypto/bahnpulse/actions/workflows/ci.yml/badge.svg)](https://github.com/Rony-crypto/bahnpulse/actions/workflows/ci.yml)
+[![Monthly data refresh](https://github.com/Rony-crypto/bahnpulse/actions/workflows/monthly_history.yml/badge.svg)](https://github.com/Rony-crypto/bahnpulse/actions/workflows/monthly_history.yml)
+[![Live app](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://bahnpulse.streamlit.app/?embed=true)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+![dbt + DuckDB](https://img.shields.io/badge/dbt-DuckDB-EC0016)
+
 How punctual are German trains, and where does their delay actually come from? BahnPulse
-turns 160 million stop records (Nov 2025 – Sep 2026, every station, every operator) into a
+turns over 170 million stop records (every station and operator, monthly since Nov 2025) into a
 tested dbt model and a public dashboard that compares federal states, train types and
 stations, and traces how delay builds up along each journey.
 
 **Live dashboard:** [bahnpulse.streamlit.app](https://bahnpulse.streamlit.app/?embed=true)
+
+![BahnPulse dashboard: punctuality by federal state, KPIs and state ranking](docs/images/dashboard.png)
 
 ## Key findings
 
@@ -18,7 +26,7 @@ stations, and traces how delay builds up along each journey.
    stops but add 35% of all delay minutes (Frankfurt, Hamburg, Köln, Hannover, Stuttgart,
    Duisburg).
 
-Each finding holds in every one of the 11 months. Method, checks and limits are in
+Each finding holds in every one of the 12 months through Oct 2026. Method, checks and limits are in
 [docs/report_notes.md](docs/report_notes.md).
 
 ## Questions the dashboard answers
@@ -44,7 +52,7 @@ S4 state shapes (Natural Earth) ───┘                         │
   "where do delays start" marts are dbt Python models that rebuild trips one month at a time
   (`src/dbp/transform/delay_spread.py`).
 - **Tests:** 48 dbt data tests (keys, accepted values, full weeks, delay buckets adding up,
-  delay sources adding up to the final delay) and 67 Python unit tests (`uv run pytest`),
+  delay sources adding up to the final delay) and 68 Python unit tests (`uv run pytest`),
   including the AI layer's sandbox, fallback and scoring (no API key needed).
 - **Automation:** the `monthly_history` GitHub workflow checks daily for a new source month,
   rebuilds, tests and publishes the marts.
@@ -78,6 +86,8 @@ most S-Bahn delay?").
 3. A failing query goes back to the model once with the error.
 4. The model writes a short answer from the result rows only; the chat shows the SQL so every
    number can be checked.
+
+![Ask AI chat answering a question about S-Bahn punctuality, with the SQL behind it](docs/images/ask-ai.png)
 
 **The database computes every number, never the model.** Providers are tried in order: Groq's
 free plan (gpt-oss-120b, then Qwen 3.8 and gpt-oss-20b, each with its own daily allowance),
@@ -115,7 +125,7 @@ takes about 4 minutes on a laptop.
 
 ## Data coverage and known gaps
 
-History covers Nov 2025 to the latest month the source has published (currently Sep 2026).
+History covers Nov 2025 to the latest month the source has published (updated monthly by the workflow).
 Two months are incomplete, found by the dbt mart `agg_month_coverage` (hours with under half
 the usual stop volume):
 

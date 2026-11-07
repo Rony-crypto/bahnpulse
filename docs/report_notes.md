@@ -1,15 +1,15 @@
 # Report notes
 
 Method, findings and limitations behind the dashboard, for the report. Figures cover
-Nov 2025 – Sep 2026 unless stated otherwise.
+Nov 2025 – Oct 2026 unless stated otherwise.
 
 ## The story in one minute
 
 Punctuality numbers say *how* late German trains are; they do not say *where the delay comes
-from*, which is what you need to know to fix it. I rebuilt every train journey from 160
-million stop records and split each late train's delay into three parts: delay it already had
+from*, which is what you need to know to fix it. I rebuilt every train journey from over
+170 million stop records and split each late train's delay into three parts: delay it already had
 at its first station, delay added while running between stations, and delay added while
-standing at stations. Three findings stand out, and each held in all 11 months:
+standing at stations. Three findings stand out, and each held in all 12 months:
 
 1. **Delay builds up along the route.** Most trains start on time (82% of ICE leave their
    first station on time), but fewer than half of ICE (45%) reach their last station on
@@ -74,11 +74,11 @@ minutes added):
 
 | Train type | Trips ending late | At the first station | Between stations | At stations |
 | --- | --- | --- | --- | --- |
-| ICE | 54% | 14% | 60% | 25% |
+| ICE | 54% | 14% | 60% | 26% |
 | IC/EC | 55% | 16% | 62% | 22% |
 | RE | 28% | 23% | 42% | 35% |
-| RB | 16% | 26% | 29% | 45% |
-| S-Bahn | 14% | 20% | 31% | 50% |
+| RB | 17% | 26% | 28% | 45% |
+| S-Bahn | 14% | 20% | 30% | 50% |
 
 Month to month the ICE share between stations stays between 57% and 65%, and the S-Bahn share
 at stations between 47% and 54%.
@@ -94,12 +94,12 @@ but not enough to cancel it out.
 | IC/EC | 14% | 45% | 58% | 56% |
 | RE | 11% | 24% | 31% | 30% |
 | RB | 8% | 15% | 19% | 18% |
-| S-Bahn | 5% | 12% | 14% | 14% |
+| S-Bahn | 5% | 12% | 14% | 15% |
 
 The small improvement at the last station is the buffer timetables add before the end of a
 line.
 
-**Where delay is added:** 5,377 stations. The top 5% handle 27% of train stops but add 35% of
+**Where delay is added:** 5,380 stations. The top 5% handle 27% of train stops but add 35% of
 all delay minutes, so they add more delay per train, not only more trains. Highest totals:
 Frankfurt (Main) Hbf, Hamburg Hbf, Köln Hbf, Hannover Hbf, Stuttgart Hbf, Duisburg Hbf.
 Per train, Hannover (2.4 min, 76% of it on the way in) and Duisburg (2.1 min) stand out.
@@ -311,7 +311,7 @@ the trend tooltip marks them as incomplete months.
 ### What it does
 
 Visitors ask in English or German; the answer comes from a database query the model writes,
-not from the model's memory. A language model has never seen these 160 million stop records,
+not from the model's memory. A language model has never seen these 170 million stop records,
 so asked directly it would guess. Here it only writes SQL; DuckDB computes the numbers; the
 model then phrases a short answer from the result rows, and the chat shows the SQL.
 
