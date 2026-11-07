@@ -354,7 +354,8 @@ run time, so the test stays valid when new months arrive.
   it; this is the fair score.
 
 Results with gpt-oss-120b: 29 of 32, then 28 of 30 answered, then 30 of 32 on the tuning set
-as the prompt improved. The hold-out score is in `docs/ask_eval.md`.
+as the prompt improved. Latest run (Nov 2026, data through Oct 2026): 41 of 44, with 31 of 32
+on the tuning set and 10 of 12 on the hold-out set; details in `docs/ask_eval.md`.
 
 ### What testing found and fixed
 

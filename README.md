@@ -96,8 +96,11 @@ then Google's Gemini and Gemma as a last resort. Code: `src/dbp/ask/`.
 **Evaluation:** `uv run python -m dbp.ask.evaluate` scores the model against hand-written
 reference queries (`src/dbp/ask/eval_questions.yml`): 32 tuning questions used while writing
 the prompt, and 12 hold-out questions written afterwards and never used to change it. With
-gpt-oss-120b: 30 of 32 tuning questions correct (preliminary; the hold-out score follows in
-`docs/ask_eval.md`).
+gpt-oss-120b (Nov 2026): **41 of 44 correct**, 31 of 32 tuning and **10 of 12 hold-out**
+(the fair score), median 5.6 s per question, all 7 questions the data cannot answer declined.
+The misses: one wrong share (a German question about delays over 60 minutes), one March vs
+June comparison and one query that still failed after the retry. Full results:
+[docs/ask_eval.md](docs/ask_eval.md).
 
 ## Quick start
 
