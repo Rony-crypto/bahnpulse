@@ -137,6 +137,15 @@ def test_route_position_runs_from_first_to_last_station():
     assert route["stop_count"].sum() == 5
 
 
+def test_trip_ending_mid_route_is_not_complete():
+    # B has no planned departure (the train ends there), then runs on to C and D under the
+    # same ride id: the delays cannot be chained across B (October 2026 data).
+    ends_at_b = [TRIP[0], stop("r1", 2, "B", 30, None, 7, None), TRIP[2], TRIP[3]]
+
+    assert run(ends_at_b, DELAY_SOURCES_SQL).empty
+    assert run(ends_at_b, ALONG_ROUTE_SQL).empty
+
+
 def test_trip_cut_off_before_its_last_station_is_not_complete():
     # The data ends at C, but C still has a departure: the train runs on beyond the data.
     cut = [TRIP[0], TRIP[1], stop("r1", 3, "C", 60, 62, 6, 9)]

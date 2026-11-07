@@ -96,6 +96,12 @@ with_previous AS (
         -- departure runs from its true first to its true last station.
         first_value(arrival_planned_time IS NULL) OVER whole_trip_ordered AS starts_at_origin,
         last_value(departure_planned_time IS NULL) OVER whole_trip_ordered AS ends_at_terminus,
+        -- ... and only there: a stop mid-route without a planned arrival or departure (a
+        -- train ending and restarting under the same ride id) breaks the chain of delays.
+        sum(CAST(arrival_planned_time IS NULL AS INTEGER)) OVER whole_trip
+            AS no_arrival_stops,
+        sum(CAST(departure_planned_time IS NULL AS INTEGER)) OVER whole_trip
+            AS no_departure_stops,
         -- Every planned arrival and departure ran and has a delay, so the trip's lateness
         -- splits exactly into origin + running + dwell.
         bool_and(
@@ -132,6 +138,8 @@ SELECT
         AND trip_stop_count >= 3
         AND starts_at_origin
         AND ends_at_terminus
+        AND no_arrival_stops = 1
+        AND no_departure_stops = 1
         AND fully_observed AS is_complete_trip,
     CASE
         WHEN last_stop_num > first_stop_num
