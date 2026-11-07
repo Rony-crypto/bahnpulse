@@ -9,6 +9,7 @@ from __future__ import annotations
 import streamlit as st
 
 from dbp.ask.agent import AskResult
+from dbp.ask.llm import KEY_NAMES
 from dbp.dashboard.ask import MAX_QUESTIONS_PER_SESSION, cached_answer, configured
 
 EXAMPLES = [
@@ -19,12 +20,20 @@ EXAMPLES = [
 
 
 def render_chat() -> None:
-    """Round button fixed to the bottom-right corner (CSS: .st-key-bp_chat in theme.py)."""
-    if not configured():
-        return
+    """Round button fixed to the bottom-right corner (CSS: .st-key-bp_chat in theme.py).
+
+    Always shown, so a missing key is explained in the panel instead of the button vanishing.
+    """
     with st.container(key="bp_chat"):
         with st.popover("Ask AI", icon=":material/chat:"):
-            chat_panel()
+            if configured():
+                chat_panel()
+            else:
+                st.markdown("**Ask the data**")
+                st.info(
+                    f"The AI chat is not set up yet: it needs an API key ({KEY_NAMES}) in "
+                    "the app's secrets."
+                )
 
 
 def set_pending(question: str) -> None:
