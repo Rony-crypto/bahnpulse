@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 
 from dbp.dashboard.ask import render_ask
+from dbp.dashboard.chat import render_chat
 from dbp.dashboard.data import data_gaps, load_marts, load_states, mart_signature
 from dbp.dashboard.germany import render_germany
 from dbp.dashboard.hamburg import render_hamburg
@@ -71,6 +72,9 @@ def render_dashboard(view: str) -> None:
         render_ask()
         render_footer()
         return
+
+    # Floating chat on the dashboard pages (the Ask page already is one).
+    render_chat()
 
     with st.sidebar:
         st.header("History")

@@ -226,6 +226,26 @@ def app_css() -> str:
   background: {colors["callout"]}; border: none !important; border-radius: 12px;
   padding: 0.6rem 0.9rem;
 }}
+/* Floating "Ask AI" chat (dbp.dashboard.chat): a round DB red button, bottom right */
+.st-key-bp_chat {{
+  position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 999; width: auto !important;
+}}
+.st-key-bp_chat button {{
+  border: none; border-radius: 999px; padding: 0.55rem 1.1rem;
+  box-shadow: 0 6px 20px rgba(236, 0, 22, 0.35);
+}}
+/* !important: Streamlit's focus and open-popover styles swap in a translucent gray */
+.st-key-bp_chat button, .st-key-bp_chat button:focus, .st-key-bp_chat button:active {{
+  background: #EC0016 !important;
+}}
+.st-key-bp_chat button:hover {{ background: #C50014 !important; }}
+.st-key-bp_chat button, .st-key-bp_chat button * {{ color: #FFFFFF !important; }}
+/* Chat avatars in DB colors instead of Streamlit's orange: AI in red, the visitor in slate */
+[data-testid="stChatMessageAvatarAssistant"] {{ background: #EC0016; color: #FFFFFF; }}
+[data-testid="stChatMessageAvatarUser"] {{ background: {colors["muted"]}; color: #FFFFFF; }}
+[data-testid="stPopoverBody"]:has(.st-key-bp_chat_messages) {{
+  width: min(420px, calc(100vw - 32px)); max-width: none;
+}}
 /* Attribution line at the page bottom */
 .bp-footer {{
   margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid {colors["line"]};
