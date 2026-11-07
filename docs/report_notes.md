@@ -306,6 +306,74 @@ the trend tooltip marks them as incomplete months.
 - All marts are built and tested with dbt before they are exported (see `dbt/models/schema.yml`
   and `dbt/tests/`).
 
+## Ask the data: AI questions with checked SQL
+
+### What it does
+
+Visitors ask in English or German; the answer comes from a database query the model writes,
+not from the model's memory. A language model has never seen these 160 million stop records,
+so asked directly it would guess. Here it only writes SQL; DuckDB computes the numbers; the
+model then phrases a short answer from the result rows, and the page shows the SQL and table.
+
+### Safety layers
+
+1. **Only one read-only SELECT** on six documented views (checked with DuckDB's own parser:
+   statement type, table names, no table functions such as `read_csv`).
+2. **Sandbox:** an in-memory DuckDB with file and network access switched off and settings
+   locked, so even a query that slipped through could not read files or change settings.
+3. **Limits:** 10-second time limit, 200-row cap, 15 questions per visitor session.
+4. **Views hold counts, not percentages,** so ratios are always summed before dividing (the
+   classic mistake of averaging percentages is impossible to make silently).
+5. **Declining:** questions the data cannot answer (causes, weather, prices, the future, other
+   countries) are declined with a reason and a pointer to what the data can show.
+
+### Choosing a model (October 2026, free plans only)
+
+| Option | What happened |
+| --- | --- |
+| Gemini 3.8 Flash | "High demand" errors; one question took 164 s with retries |
+| Gemini 3.5 Flash | Fast and correct (6 of 6 before the limit), but the free tier allows **20 requests a day** per model, about 10 questions |
+| Gemma 4 31B (same Google key) | Large daily allowance, but about 50 s per call, and the service returned errors for hours |
+| Mistral | The large free "Experiment" plan was replaced in August 2026 by $10 of credit a month |
+| **Groq** (chosen) | 2–3 s per question; about 40 questions a day per model (200,000 tokens a day, about 4,500 per question); three models with separate allowances |
+
+The app tries Groq's gpt-oss-120b, then Qwen 3.8 and gpt-oss-20b, then Gemini and Gemma. A
+short rate limit (seconds) is waited out; a long one (daily allowance used up) moves to the
+next model immediately, so visitors never wait minutes.
+
+### Evaluation
+
+`uv run python -m dbp.ask.evaluate` asks every test question and compares the model's result
+with a hand-written reference query run on the same data (a single number within rounding,
+several numbers, a name, an ordered top list, or "declined"). Expected values are computed at
+run time, so the test stays valid when new months arrive.
+
+- **Tuning set (32 questions):** lookups, rankings, comparisons, delay spread, time of day,
+  German, and questions to decline. These shaped the prompt, so their score is optimistic.
+- **Hold-out set (12 questions):** written after the prompt was final and never used to change
+  it; this is the fair score.
+
+Results with gpt-oss-120b: 29 of 32, then 28 of 30 answered, then 30 of 32 on the tuning set
+as the prompt improved. The hold-out score is in `docs/ask_eval.md`.
+
+### What testing found and fixed
+
+- **Rounding hid a value:** "% of Bavarian S-Bahn arrivals over 60 minutes late" is 0.05%;
+  the rule "round to 1 decimal" turned it into "0%". Values below 1 now keep 2 decimals.
+- **National figures presented as one state's:** asked why Hamburg's trains were late, the
+  model combined Hamburg's punctuality with the delay-source shares, which exist only for
+  all of Germany, and called them causes. The prompt now states which tables are national
+  and that the data shows where and when, never why.
+- **Wrong language and period:** an English question got a German answer that named the
+  whole period although the query covered one month. The question's language is now detected
+  in code, and the answer must name the months the query filters.
+- **Runs differ slightly:** even at temperature 0 the model does not always write the same
+  query (one question passed in one run and failed in the next), so scores vary by a question
+  or two between runs.
+- **Free plans fail in practice:** rate limits, daily caps, overloaded models and dropped
+  connections all occurred. Failures caused by the provider are recorded as "model
+  unavailable" and retried, not counted as wrong answers.
+
 ## Live hub data (deferred)
 
 The project focuses on the monthly history. The near-real-time collector (S2) was tested and

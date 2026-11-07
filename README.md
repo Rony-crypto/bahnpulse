@@ -44,7 +44,8 @@ S4 state shapes (Natural Earth) ───┘                         │
   "where do delays start" marts are dbt Python models that rebuild trips one month at a time
   (`src/dbp/transform/delay_spread.py`).
 - **Tests:** 48 dbt data tests (keys, accepted values, full weeks, delay buckets adding up,
-  delay sources adding up to the final delay) and Python unit tests (`uv run pytest`).
+  delay sources adding up to the final delay) and 67 Python unit tests (`uv run pytest`),
+  including the AI layer's sandbox, fallback and scoring (no API key needed).
 - **Automation:** the `monthly_history` GitHub workflow checks daily for a new source month,
   rebuilds, tests and publishes the marts.
 
@@ -63,6 +64,29 @@ S4 state shapes (Natural Earth) ───┘                         │
 - **Trips are rebuilt from stop events,** because the source has no trip id. Only trips from
   their true first to their true last station are used to split delay, and the split is
   checked to account for every minute.
+
+## Ask the data (AI)
+
+The dashboard's "Ask the data" page answers questions in English or German, including ones
+nobody asked before ("Which Bavarian station added the most S-Bahn delay?").
+
+1. An LLM turns the question into one DuckDB query over six documented views of the published
+   marts, or declines when the data cannot answer (causes, weather, prices, the future).
+2. The query is checked (a single SELECT on the known views, no table functions) and runs in
+   an in-memory sandbox with file and network access switched off, a time limit and a row cap.
+3. A failing query goes back to the model once with the error.
+4. The model writes a short answer from the result rows only; the page shows the SQL and the
+   table so every number can be checked.
+
+**The database computes every number, never the model.** Providers are tried in order: Groq's
+free plan (gpt-oss-120b, then Qwen 3.8 and gpt-oss-20b, each with its own daily allowance),
+then Google's Gemini and Gemma as a last resort. Code: `src/dbp/ask/`.
+
+**Evaluation:** `uv run python -m dbp.ask.evaluate` scores the model against hand-written
+reference queries (`src/dbp/ask/eval_questions.yml`): 32 tuning questions used while writing
+the prompt, and 12 hold-out questions written afterwards and never used to change it. With
+gpt-oss-120b: 30 of 32 tuning questions correct (preliminary; the hold-out score follows in
+`docs/ask_eval.md`).
 
 ## Quick start
 
@@ -106,7 +130,7 @@ the usual stop volume):
 | Done | Tested dbt model and monthly automation |
 | Done | Public dashboard: states, train types, cancellations, Hamburg deep dive |
 | Done | Where delays start and how they spread |
-| Next | "Ask the data": questions in English or German answered with validated SQL |
+| Done | "Ask the data": questions in English or German answered with checked SQL, evaluated |
 | Later | Live hub layer (collector tested; see the report notes for findings) |
 
 ## Credits and licences

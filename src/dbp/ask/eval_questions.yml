@@ -1,0 +1,350 @@
+# Test set for "Ask the data" (uv run python -m dbp.ask.evaluate).
+#
+# Each question has a hand-written reference query on the sandbox views. Expected values come
+# from running it, so the test stays valid when new months arrive. check:
+#   number   - the reference's first number appears in the model's first row (within rounding)
+#   numbers  - every number in the reference's last column appears in the model's result
+#   label    - the reference's first value (a name, month or hour) is in the model's first row,
+#              or the result contains it and the answer text names it
+#   ranking  - the reference's first column, in order, is a column of the model's result
+#   decline  - the data cannot answer it; the model must say so
+# reference may list several queries when a question has more than one fair reading.
+# "Rail" below = all train types except Bus and Other (the agent's default).
+
+questions:
+  # --- Simple lookups ---
+  - id: lookup-ice-on-time
+    category: lookup
+    question: What share of ICE arrivals were on time across the whole period?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(on_time_arrivals) / sum(arrivals), 1) FROM state_month
+      WHERE train_group = 'ICE'
+  - id: lookup-hh-s-march
+    category: lookup
+    question: How punctual was the S-Bahn in Hamburg in March 2026?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(on_time_arrivals) / sum(arrivals), 1) FROM state_month
+      WHERE train_group = 'S' AND federal_state = 'Hamburg' AND month = DATE '2026-03-01'
+  - id: lookup-re-delay-bayern
+    category: lookup
+    question: What was the average arrival delay of RE trains in Bavaria?
+    check: number
+    reference: >-
+      SELECT round(sum(late_minutes) / sum(arrivals), 1) FROM state_month
+      WHERE train_group = 'RE' AND federal_state = 'Bayern'
+  - id: lookup-icec-cancelled
+    category: lookup
+    question: What percentage of IC/EC arrivals were cancelled?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(cancelled_arrivals) / sum(arrivals + cancelled_arrivals), 1)
+      FROM state_month WHERE train_group = 'IC/EC'
+  - id: lookup-germany-sep
+    category: lookup
+    question: What was the on-time share of all trains in Germany in September 2026?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(on_time_arrivals) / sum(arrivals), 1) FROM state_month
+      WHERE train_group NOT IN ('Bus', 'Other') AND month = DATE '2026-09-01'
+  - id: lookup-frankfurt-station
+    category: lookup
+    question: How punctual were trains at Frankfurt main station?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(on_time_arrivals) / sum(arrivals), 1) FROM station_month
+      WHERE station_name = 'Frankfurt (Main) Hbf' AND train_group NOT IN ('Bus', 'Other')
+
+  # --- Rankings ---
+  - id: rank-state-re-worst
+    category: ranking
+    question: Which federal state had the lowest on-time share for RE trains?
+    check: label
+    reference: >-
+      SELECT federal_state FROM state_month WHERE train_group = 'RE' GROUP BY 1
+      ORDER BY sum(on_time_arrivals) / sum(arrivals) LIMIT 1
+  - id: rank-state-rb-cancel-jan
+    category: ranking
+    question: Which state had the highest RB cancellation rate in January 2026?
+    check: label
+    reference: >-
+      SELECT federal_state FROM state_month WHERE train_group = 'RB' AND month = DATE '2026-01-01'
+      GROUP BY 1 ORDER BY sum(cancelled_arrivals) / sum(arrivals + cancelled_arrivals) DESC LIMIT 1
+  - id: rank-stations-delay-added
+    category: ranking
+    question: Which 5 stations added the most delay minutes in total?
+    check: ranking
+    reference: >-
+      SELECT station_name FROM station_delay_gain WHERE train_group NOT IN ('Bus', 'Other')
+      GROUP BY 1 HAVING sum(measured_stops) >= 100
+      ORDER BY sum(running_added_min + dwell_added_min) DESC LIMIT 5
+  - id: rank-station-ice-worst
+    category: ranking
+    question: Which station with at least 1000 ICE arrivals had the worst ICE punctuality?
+    check: label
+    reference: >-
+      SELECT station_name FROM station_month WHERE train_group = 'ICE' GROUP BY 1
+      HAVING sum(arrivals) >= 1000 ORDER BY sum(on_time_arrivals) / sum(arrivals) LIMIT 1
+  - id: rank-train-types
+    category: ranking
+    question: Rank the train types by on-time share, best first.
+    check: ranking
+    reference: >-
+      SELECT train_group FROM state_month WHERE train_group NOT IN ('Bus', 'Other') GROUP BY 1
+      ORDER BY sum(on_time_arrivals) / sum(arrivals) DESC
+  - id: rank-month-ice-best
+    category: ranking
+    question: In which month was ICE punctuality best?
+    check: label
+    reference: >-
+      SELECT month FROM state_month WHERE train_group = 'ICE' GROUP BY 1
+      ORDER BY sum(on_time_arrivals) / sum(arrivals) DESC LIMIT 1
+
+  # --- Comparisons ---
+  - id: compare-s-berlin-hamburg
+    category: comparison
+    question: Was the S-Bahn more punctual in Berlin or in Hamburg?
+    check: label
+    reference: >-
+      SELECT federal_state FROM state_month WHERE train_group = 'S'
+      AND federal_state IN ('Berlin', 'Hamburg') GROUP BY 1
+      ORDER BY sum(on_time_arrivals) / sum(arrivals) DESC LIMIT 1
+  - id: compare-ice-re
+    category: comparison
+    question: Compare the on-time share of ICE and RE trains.
+    check: numbers
+    reference: >-
+      SELECT train_group, round(100.0 * sum(on_time_arrivals) / sum(arrivals), 1)
+      FROM state_month WHERE train_group IN ('ICE', 'RE') GROUP BY 1
+  - id: compare-ice-jan-aug
+    category: comparison
+    question: How did ICE punctuality change from January to August 2026?
+    check: numbers
+    reference: >-
+      SELECT month, round(100.0 * sum(on_time_arrivals) / sum(arrivals), 1) FROM state_month
+      WHERE train_group = 'ICE' AND month IN (DATE '2026-01-01', DATE '2026-08-01') GROUP BY 1
+
+  # --- Delay spread ---
+  - id: spread-ice-running
+    category: delay spread
+    question: What share of the delay of late ICE trips is added between stations?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(running_added_min)
+        / sum(origin_late_min + running_added_min + dwell_added_min), 1)
+      FROM delay_sources WHERE train_group = 'ICE' AND ends_late
+  - id: spread-s-sources
+    category: delay spread
+    question: Where does the delay of late S-Bahn trips come from? Give the shares.
+    check: numbers
+    reference: >-
+      SELECT source, share FROM (
+        SELECT round(100.0 * sum(origin_late_min) / sum(origin_late_min + running_added_min
+            + dwell_added_min), 1) AS origin,
+          round(100.0 * sum(running_added_min) / sum(origin_late_min + running_added_min
+            + dwell_added_min), 1) AS running,
+          round(100.0 * sum(dwell_added_min) / sum(origin_late_min + running_added_min
+            + dwell_added_min), 1) AS dwell
+        FROM delay_sources WHERE train_group = 'S' AND ends_late
+      ) UNPIVOT (share FOR source IN (origin, running, dwell))
+  - id: spread-delay-starts
+    category: delay spread
+    question: At which station do the most trains first become 6 or more minutes late?
+    check: label
+    reference: >-
+      SELECT station_name FROM station_delay_gain WHERE train_group NOT IN ('Bus', 'Other')
+      GROUP BY 1 ORDER BY sum(delay_starts) DESC LIMIT 1
+  - id: spread-ice-end-late
+    category: delay spread
+    question: What share of ICE trains are 6 or more minutes late at their last station?
+    check: number
+    reference:
+      - >-
+        SELECT round(100.0 * sum(late_stops) / sum(stops), 1) FROM delay_along_route
+        WHERE train_group = 'ICE' AND route_pct = 100
+      - >-
+        SELECT round(100.0 * sum(trips) FILTER (WHERE ends_late) / sum(trips), 1)
+        FROM delay_sources WHERE train_group = 'ICE'
+  - id: spread-hamburg-station
+    category: delay spread
+    question: Which Hamburg station adds the most delay minutes for RE trains?
+    check: label
+    reference: >-
+      SELECT station_name FROM station_delay_gain WHERE train_group = 'RE'
+      AND federal_state = 'Hamburg' GROUP BY 1
+      ORDER BY sum(running_added_min + dwell_added_min) DESC LIMIT 1
+
+  # --- Time of day and trends ---
+  - id: time-re-worst-hour
+    category: time
+    question: At which hour of the day are RE trains least punctual in Germany?
+    check: label
+    reference: >-
+      SELECT hour FROM state_hour WHERE train_group = 'RE' GROUP BY 1
+      ORDER BY sum(on_time_arrivals) / sum(arrivals) LIMIT 1
+  - id: time-s-best-weekday
+    category: time
+    question: Which weekday has the best on-time share for S-Bahn trains?
+    check: label
+    aliases: {1: [Monday, Montag], 2: [Tuesday, Dienstag], 3: [Wednesday, Mittwoch],
+              4: [Thursday, Donnerstag], 5: [Friday, Freitag], 6: [Saturday, Samstag],
+              7: [Sunday, Sonntag]}
+    reference: >-
+      SELECT weekday FROM state_hour WHERE train_group = 'S' GROUP BY 1
+      ORDER BY sum(on_time_arrivals) / sum(arrivals) DESC LIMIT 1
+  - id: time-month-most-cancelled
+    category: time
+    question: In which month were the most train arrivals cancelled?
+    check: label
+    reference: >-
+      SELECT month FROM state_month WHERE train_group NOT IN ('Bus', 'Other') GROUP BY 1
+      ORDER BY sum(cancelled_arrivals) DESC LIMIT 1
+
+  # --- German ---
+  - id: de-best-state-rb
+    category: German
+    question: Welches Bundesland hatte die beste Pünktlichkeit bei RB-Zügen?
+    check: label
+    reference: >-
+      SELECT federal_state FROM state_month WHERE train_group = 'RB' GROUP BY 1
+      ORDER BY sum(on_time_arrivals) / sum(arrivals) DESC LIMIT 1
+  - id: de-ice-delay-hessen
+    category: German
+    question: Wie hoch war die durchschnittliche Verspätung der ICE-Züge in Hessen?
+    check: number
+    reference: >-
+      SELECT round(sum(late_minutes) / sum(arrivals), 1) FROM state_month
+      WHERE train_group = 'ICE' AND federal_state = 'Hessen'
+  - id: de-nrw-re-cancellations
+    category: German
+    question: >-
+      Welche fünf Bahnhöfe in Nordrhein-Westfalen hatten bei RE-Zügen die meisten
+      ausgefallenen Ankünfte?
+    check: ranking
+    reference: >-
+      SELECT station_name FROM station_month WHERE train_group = 'RE'
+      AND federal_state = 'Nordrhein-Westfalen' GROUP BY 1 HAVING sum(arrivals) >= 100
+      ORDER BY sum(cancelled_arrivals) DESC LIMIT 5
+  - id: de-s-bayern-over-60
+    category: German
+    question: >-
+      Wie viel Prozent der S-Bahn-Ankünfte in Bayern waren mehr als 60 Minuten verspätet?
+    check: number
+    reference:
+      - >-
+        SELECT round(100.0 * sum(late_over_60) / sum(arrivals), 2) FROM state_month
+        WHERE train_group = 'S' AND federal_state = 'Bayern'
+      - >-
+        SELECT round(100.0 * sum(late_over_60) / sum(arrivals + cancelled_arrivals), 2)
+        FROM state_month WHERE train_group = 'S' AND federal_state = 'Bayern'
+
+  # --- Questions the data cannot answer ---
+  - id: decline-causes
+    category: decline
+    question: Why were trains late in Hamburg in January 2026?
+    check: decline
+  - id: decline-future
+    category: decline
+    question: What will ICE punctuality be in December 2026?
+    check: decline
+  - id: decline-austria
+    category: decline
+    question: How punctual are trains in Austria?
+    check: decline
+  - id: decline-price
+    category: decline
+    question: Wie teuer ist ein Ticket von Hamburg nach Berlin?
+    check: decline
+  - id: decline-weather
+    category: decline
+    question: Will there be storms that delay trains in Bavaria next week?
+    check: decline
+
+  # --- Hold-out: written after the prompt was tuned on the questions above, run only to
+  # report the final score, never used to change the prompt. ---
+  - id: holdout-rb-cancel-nds
+    category: hold-out
+    question: What share of RB arrivals were cancelled in Lower Saxony?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(cancelled_arrivals) / sum(arrivals + cancelled_arrivals), 1)
+      FROM state_month WHERE train_group = 'RB' AND federal_state = 'Niedersachsen'
+  - id: holdout-koeln-ice-stops
+    category: hold-out
+    question: How many planned ICE stops did Köln Hbf have?
+    check: number
+    reference: >-
+      SELECT sum(planned_stops) FROM station_month
+      WHERE station_name = 'Köln Hbf' AND train_group = 'ICE'
+  - id: holdout-states-ice-delay
+    category: hold-out
+    question: Which three federal states had the highest average ICE delay?
+    check: ranking
+    reference: >-
+      SELECT federal_state FROM state_month WHERE train_group = 'ICE' GROUP BY 1
+      ORDER BY sum(late_minutes) / sum(arrivals) DESC LIMIT 3
+  - id: holdout-bayern-s-delay-added
+    category: hold-out
+    question: Which station in Bavaria added the most delay minutes for S-Bahn trains?
+    check: label
+    reference: >-
+      SELECT station_name FROM station_delay_gain WHERE train_group = 'S'
+      AND federal_state = 'Bayern' GROUP BY 1
+      ORDER BY sum(running_added_min + dwell_added_min) DESC LIMIT 1
+  - id: holdout-re-march-june
+    category: hold-out
+    question: Was RE punctuality better in March or in June 2026?
+    check: label
+    reference: >-
+      SELECT month FROM state_month WHERE train_group = 'RE'
+      AND month IN (DATE '2026-03-01', DATE '2026-06-01') GROUP BY 1
+      ORDER BY sum(on_time_arrivals) / sum(arrivals) DESC LIMIT 1
+  - id: holdout-berlin-s-busiest-hour
+    category: hold-out
+    question: At which hour do the most S-Bahn trains arrive in Berlin?
+    check: label
+    reference: >-
+      SELECT hour FROM state_hour WHERE train_group = 'S' AND federal_state = 'Berlin'
+      GROUP BY 1 ORDER BY sum(arrivals) DESC LIMIT 1
+  - id: holdout-rb-trips-end-late
+    category: hold-out
+    question: What share of RB trips end 6 or more minutes late?
+    check: number
+    reference:
+      - >-
+        SELECT round(100.0 * sum(trips) FILTER (WHERE ends_late) / sum(trips), 1)
+        FROM delay_sources WHERE train_group = 'RB'
+      - >-
+        SELECT round(100.0 * sum(late_stops) / sum(stops), 1) FROM delay_along_route
+        WHERE train_group = 'RB' AND route_pct = 100
+  - id: holdout-de-month-ice-cancelled
+    category: hold-out
+    question: Welcher Monat hatte die meisten ausgefallenen ICE-Ankünfte?
+    check: label
+    reference: >-
+      SELECT month FROM state_month WHERE train_group = 'ICE' GROUP BY 1
+      ORDER BY sum(cancelled_arrivals) DESC LIMIT 1
+  - id: holdout-de-regional-sachsen
+    category: hold-out
+    question: Wie pünktlich war der Regionalverkehr (RE und RB zusammen) in Sachsen?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(on_time_arrivals) / sum(arrivals), 1) FROM state_month
+      WHERE train_group IN ('RE', 'RB') AND federal_state = 'Sachsen'
+  - id: holdout-dammtor-s-august
+    category: hold-out
+    question: What was the on-time share of S-Bahn trains at Hamburg Dammtor in August 2026?
+    check: number
+    reference: >-
+      SELECT round(100.0 * sum(on_time_arrivals) / sum(arrivals), 1) FROM station_month
+      WHERE station_name = 'Hamburg Dammtor' AND train_group = 'S'
+      AND month = DATE '2026-08-01'
+  - id: holdout-decline-driver
+    category: hold-out
+    question: Which train driver was late most often?
+    check: decline
+  - id: holdout-decline-2024
+    category: hold-out
+    question: Wie pünktlich waren die ICE-Züge im Jahr 2024?
+    check: decline

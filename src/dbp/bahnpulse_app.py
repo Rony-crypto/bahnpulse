@@ -10,6 +10,7 @@ import json
 import pandas as pd
 import streamlit as st
 
+from dbp.dashboard.ask import render_ask
 from dbp.dashboard.data import data_gaps, load_marts, load_states, mart_signature
 from dbp.dashboard.germany import render_germany
 from dbp.dashboard.hamburg import render_hamburg
@@ -61,6 +62,14 @@ def render_dashboard(view: str) -> None:
     available_months = sorted(state_frame["service_month_label"].dropna().unique().tolist())
     if not available_months:
         st.warning("No monthly history is available in the published marts.")
+        return
+
+    if view == "Ask":
+        # Questions cover the whole history, so the page has no month filter.
+        with banner:
+            st.html(hero_banner_html((available_months[0], available_months[-1])))
+        render_ask()
+        render_footer()
         return
 
     with st.sidebar:
@@ -142,6 +151,11 @@ def main() -> None:
             "pages/hamburg.py",
             title="Hamburg",
             url_path="hamburg",
+        ),
+        st.Page(
+            "pages/ask.py",
+            title="Ask the data",
+            url_path="ask",
         ),
     ]
     st.navigation(pages, position="sidebar").run()
