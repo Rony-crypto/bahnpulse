@@ -85,7 +85,8 @@ PROVIDERS = {
 }
 GOOGLE = {"gemini", "gemma"}
 # "GROQ_API_KEY, MISTRAL_API_KEY or GEMINI_API_KEY", for messages about a missing key.
-_keys = list(dict.fromkeys(p.key_env for p in sorted(PROVIDERS.values(), key=lambda p: p.name != "groq")))
+_by_preference = sorted(PROVIDERS.values(), key=lambda provider: provider.name != "groq")
+_keys = list(dict.fromkeys(provider.key_env for provider in _by_preference))
 KEY_NAMES = ", ".join(_keys[:-1]) + " or " + _keys[-1]
 
 
