@@ -1,11 +1,9 @@
 {{ config(materialized='view') }}
 
--- Train group per stop. The raw train_type is often an operator code (HLB, VIA, vlx), and one
--- operator runs both RE and RB lines, so a group per code misclassified about a third of
--- regional stops (and filed trilex express RE1/RE2 under IC/EC). The line name says which
--- service a train is (RE1, RB26, S3): when it carries one, it decides the group; otherwise the
--- code mapping does (ICE, IC, EC and trains without a line name). Rail replacement buses keep
--- their Bus group even when they carry the replaced line's name.
+-- Train group per stop. The raw train_type is often an operator code (HLB, VIA) that runs both
+-- RE and RB lines, so grouping by code misfiled about a third of regional stops. The line name
+-- (RE1, RB26, S3) decides when present; otherwise the seed maps the code (ICE, IC, EC, ...).
+-- Rail replacement buses stay Bus even when they carry the replaced line's name.
 WITH classified AS (
     SELECT
         s1.*,

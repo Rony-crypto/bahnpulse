@@ -1,5 +1,5 @@
-# Hubs for the 15-minute collector (FR-03, FR-04).
-# At least one per federal state + extra Hamburg stations for the Hamburg deep dive.
+# Hubs for the live collector (dbp.ingest.collect_hubs, tested hourly; deferred).
+# At least one per federal state, plus extra Hamburg stations.
 # eva: looked up with `uv run python -m dbp.ingest.find_eva` (exact name matches). Never guess EVA numbers.
 
 hubs:

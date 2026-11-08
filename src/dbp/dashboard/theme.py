@@ -25,8 +25,7 @@ THEME_COLORS = {
         "callout": "#FDF2F3",
         "shadow": "rgba(40, 45, 55, 0.08)",
         "categorical": ["#EC0016", "#1455C0", "#309FD1", "#814997", "#408335", "#878C96"],
-        # Monthly trend lines, in selection order: DB red, dark red, crimson, raspberry,
-        # wine, plum.
+        # Monthly trend lines, in selection order.
         "trend": ["#EC0016", "#9B000E", "#B71D47", "#DB4568", "#851637", "#7A4A68"],
     },
     "dark": {
@@ -41,10 +40,9 @@ THEME_COLORS = {
         "trend": ["#FF3B4A", "#FF7A85", "#E0607E", "#C2416A", "#F7A1B5", "#B286A8"],
     },
 }
-# Delay buckets in one rose-to-wine family: blush (on time), rose, raspberry, crimson and
-# wine for longer delays, muted plum for cancelled. Nothing near-black.
-# Columns come from agg_state_month_type.
-# Deep wine tone the donut slices shade lightly toward at their edges (soft satin sheen).
+# Delay buckets (agg_state_month_type columns) in one rose-to-wine family: blush for on time,
+# darker for longer delays, muted plum for cancelled.
+# Wine tone the donut slices shade toward at their edges.
 DONUT_EDGE = "#5A1A33"
 DONUT_EDGE_AMOUNT = 0.3
 DELAY_BUCKETS = [

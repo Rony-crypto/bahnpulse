@@ -33,9 +33,8 @@ from dbp.dashboard.theme import palette
 ALL_GERMANY = "All Germany"
 
 
-# Streamlit drops widget state when switching pages, so each filter keeps its value in a
-# plain session-state entry, copied in by the widget's on_change callback and written back
-# into the widget before it is drawn on every run.
+# Streamlit drops widget state on page switches, so each filter mirrors its value into a plain
+# session-state entry (on_change) and restores it before the widget is drawn.
 def copy_state(source: str, target: str) -> None:
     st.session_state[target] = st.session_state[source]
 

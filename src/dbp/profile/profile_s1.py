@@ -1,4 +1,4 @@
-"""Week 1 profiling of the downloaded S1 files with DuckDB.
+"""Profile the downloaded S1 files with DuckDB.
 
 Usage:
     uv run python -m dbp.profile.profile_s1

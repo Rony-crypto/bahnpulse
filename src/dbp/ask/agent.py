@@ -1,10 +1,10 @@
 """Ask the data: a question in English or German -> checked SQL -> answer from the result.
 
-1. Gemini turns the question into one DuckDB SELECT over the sandbox views, or says the data
-   cannot answer it (weather, causes, the future, other countries, ...).
+1. The model writes one DuckDB SELECT over the sandbox views, or declines when the data
+   cannot answer (weather, causes, the future, other countries, ...).
 2. The SQL is checked and run in the read-only sandbox (dbp.ask.sandbox).
-3. If it fails, the error goes back to Gemini once for a corrected query.
-4. Gemini writes a short answer in the question's language using only the result's numbers.
+3. If it fails, the error goes back to the model once for a corrected query.
+4. The model words a short answer in the question's language from the result rows only.
 """
 
 from __future__ import annotations

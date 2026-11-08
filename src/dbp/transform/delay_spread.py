@@ -2,9 +2,9 @@
 
 Used by the dbt Python models agg_delay_sources, agg_station_delay_gain and
 agg_delay_along_route. Rebuilding trips needs window functions over every stop; over the whole
-history at once (160M+ rows) DuckDB spilled 40 GB to disk, so each month is processed and
-aggregated on its own (about 15M rows, a few seconds). A trip running over midnight at the end
-of a month is split in two, which affects a negligible share of trips.
+history at once DuckDB spilled 40 GB to disk, so each month (about 15M rows) is processed on
+its own in a few seconds. A trip running over midnight at a month end is split in two
+(a negligible share).
 
 The source has no trip id: train_line_ride_id repeats on every day a train runs. A trip is one
 ride id's stops in time order until the stop number restarts or the plan jumps by more than 6

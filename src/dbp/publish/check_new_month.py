@@ -5,8 +5,8 @@ Usage:
     uv run python -m dbp.publish.check_new_month
 
 Prints new_month=<YYYY-MM or empty> and writes it to $GITHUB_OUTPUT when run in Actions.
-Exits with an error when the source is stale (TRD freshness rule: error when the newest
-published month ended more than 40 days ago), so GitHub reports the failure.
+Exits with an error when the newest published month ended more than 40 days ago (the source
+looks stale), so GitHub reports the failure.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Collect near-real-time Timetables data (S2) for the hubs in config/hubs.yml (FR-03).
+"""Collect near-real-time Timetables data (S2) for the hubs in config/hubs.yml (experiment).
 
 Usage:
     uv run python -m dbp.ingest.collect_hubs --state Hamburg --no-upload   # local test

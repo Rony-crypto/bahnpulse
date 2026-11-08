@@ -1,15 +1,13 @@
 """LLM clients for "Ask the data": JSON in, JSON out, with rate limits, retries and fallback.
 
-Providers are tried in order (LLM_PROVIDERS, default "groq,mistral,gemini,gemma"); only those
-with an API key take part. Groq's free plan (no card, very fast) is the main one; Mistral's free
-plan ($10 of credit a month since August 2026) is optional; Gemini's free tier (20 requests a
-day per model) and Gemma (slow, often unstable, same Google key) are the last resorts.
+Providers are tried in order (LLM_PROVIDERS, default "groq,mistral,gemini,gemma"), skipping
+those without an API key. Groq's free plan is the main one; Mistral is optional; Gemini (20
+free requests a day per model) and Gemma (slow, same Google key) are last resorts.
 
-Mistral and Groq share the OpenAI-style chat completions API, so one client serves both;
-Gemini has its own REST format. Each client keeps its provider's request rate, waits as long
-as a 429 reply asks (Retry-After), retries busy models, dropped connections and malformed
-replies, and gives up after a few attempts so the next provider can answer. Temperature 0
-keeps answers repeatable for evaluation.
+Groq and Mistral share the OpenAI-style chat API, so one client serves both; Gemini has its
+own format. Each client paces its requests, honours Retry-After on HTTP 429, retries transient
+failures a few times, then gives up so the next provider can answer. Temperature 0 keeps
+answers repeatable for evaluation.
 """
 
 from __future__ import annotations
@@ -26,8 +24,8 @@ import requests
 log = logging.getLogger(__name__)
 
 TRANSIENT_STATUS = {429, 500, 502, 503, 504}
-# A per-minute limit clears within seconds and is worth waiting for; a longer wait (daily
-# allowance used up) means moving on to the next model at once, so visitors never wait minutes.
+# A per-minute limit is worth waiting for; a longer wait (daily allowance used up) moves on to
+# the next model at once, so visitors never wait minutes.
 MAX_ATTEMPTS = 4
 MAX_WAIT_SECONDS = 20
 # gpt-oss models think before answering; "low" keeps that short (fewer tokens, faster).
@@ -72,8 +70,7 @@ PROVIDERS = {
         "gemini-3.5-flash",
         4.1,
     ),
-    # Google's open Gemma on the same key: thousands of free requests a day, but it always
-    # thinks first (about 50 s a call), so it is the last resort.
+    # Google's Gemma on the same key: many free requests, but about 50 s a call (last resort).
     "gemma": Provider(
         "gemma",
         "https://generativelanguage.googleapis.com/v1beta/models",

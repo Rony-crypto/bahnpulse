@@ -1,12 +1,9 @@
-"""Week 1 check: does StaDa give us federal state and coordinates for each station?
+"""Check which fields StaDa returns for a station (federal state, coordinates, EVA numbers).
 
 Usage:
     uv run python -m dbp.ingest.stada_probe "Hamburg Hbf"
 
-Prints the fields of the first match and saves the full response to data/raw/s3/probe.json.
-Look for: federalState, evaNumbers (with geographicCoordinates), number.
-If the state is missing, the fallback is a spatial join of coordinates with the
-Bundeslaender GeoJSON (see TRD section 3).
+Prints the first match's fields and saves the full response to data/raw/s3/probe.json.
 """
 
 from __future__ import annotations
