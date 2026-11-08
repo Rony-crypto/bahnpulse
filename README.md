@@ -145,7 +145,6 @@ the usual stop volume):
 | Done | Public dashboard: states, train types, cancellations, Hamburg deep dive |
 | Done | Where delays start and how they spread |
 | Done | "Ask the data": questions in English or German answered with checked SQL, evaluated |
-| Later | Live hub layer (collector tested; see the report notes for findings) |
 
 ## Credits and licences
 
