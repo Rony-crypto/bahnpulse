@@ -2,6 +2,7 @@ import pandas as pd
 
 from dbp.dashboard.charts import delay_breakdown
 from dbp.dashboard.data import (
+    delay_added_per_stop,
     delay_sources,
     headline_kpis,
     summarize_cancellations,
@@ -71,11 +72,9 @@ def test_headline_kpis_weights_states_by_volume():
     summary = pd.DataFrame(
         [
             {"planned_stop_count": 100, "cancelled_arrival_count": 90, "arrival_count": 80,
-             "on_time_arrival_count": 40, "avg_arrival_delay_min": 10.0,
-             "delay_16_30_count": 20, "delay_31_60_count": 6, "delay_over_60_count": 2},
+             "on_time_arrival_count": 40, "avg_arrival_delay_min": 10.0},
             {"planned_stop_count": 300, "cancelled_arrival_count": 10, "arrival_count": 320,
-             "on_time_arrival_count": 288, "avg_arrival_delay_min": 2.5,
-             "delay_16_30_count": 16, "delay_31_60_count": 4, "delay_over_60_count": 0},
+             "on_time_arrival_count": 288, "avg_arrival_delay_min": 2.5},
         ]
     )
 
@@ -85,21 +84,33 @@ def test_headline_kpis_weights_states_by_volume():
     assert kpis["delay"] == 4
     # Cancelled share of planned arrivals: 100 cancelled of 500 planned.
     assert kpis["cancelled"] == 20
-    # 16+ minutes late: (28 + 20) of 400 arrivals.
-    assert kpis["late16"] == 12
     assert kpis["stops"] == 400
 
 
 def test_headline_kpis_handles_empty_selection():
     empty = pd.DataFrame(
         columns=["planned_stop_count", "cancelled_arrival_count", "arrival_count",
-                 "on_time_arrival_count", "avg_arrival_delay_min", "delay_16_30_count",
-                 "delay_31_60_count", "delay_over_60_count"]
+                 "on_time_arrival_count", "avg_arrival_delay_min"]
     )
 
     kpis = headline_kpis(empty)
 
-    assert pd.isna(kpis["punctuality"]) and pd.isna(kpis["late16"]) and kpis["stops"] == 0
+    assert pd.isna(kpis["punctuality"]) and kpis["stops"] == 0
+
+
+def test_delay_added_per_stop_counts_only_minutes_added():
+    gains = pd.DataFrame(
+        [
+            {"measured_stop_count": 100, "running_added_min": 60, "dwell_added_min": 20,
+             "running_recovered_min": -50, "dwell_recovered_min": -10},
+            {"measured_stop_count": 300, "running_added_min": 90, "dwell_added_min": 30,
+             "running_recovered_min": -40, "dwell_recovered_min": 0},
+        ]
+    )
+
+    # 200 minutes added over 400 stops; recovered minutes do not offset it.
+    assert delay_added_per_stop(gains) == 0.5
+    assert pd.isna(delay_added_per_stop(gains.iloc[0:0]))
 
 
 def test_delay_breakdown_shares_add_up_per_train_type():

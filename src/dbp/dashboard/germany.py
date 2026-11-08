@@ -20,6 +20,7 @@ from dbp.dashboard.charts import (
 from dbp.dashboard.data import (
     GROUP_ORDER,
     MIN_STATION_ARRIVALS,
+    delay_added_per_stop,
     headline_kpis,
     monthly_kpis,
     summarize_cancellations,
@@ -152,33 +153,48 @@ def render_germany(
         else selected_states
     )
     by_month = monthly_kpis(area_states)
+
+    # Delay added per stop: where delay is created, not only how late trains arrive.
+    gains = spread["station_gain"]
+    gains = gains.loc[
+        gains["service_month_label"].between(first_month, last_month)
+        & gains["train_group"].isin(selected_groups)
+    ]
+    area_gains = gains.loc[gains["federal_state"] == area] if is_state else gains
+    germany["added"] = delay_added_per_stop(gains)
+    shown["added"] = delay_added_per_stop(area_gains)
+    added_by_month = area_gains.groupby("service_month_label").apply(
+        delay_added_per_stop, include_groups=False
+    )
+    by_month["added"] = by_month["month"].map(added_by_month)
+
     sparkline = (lambda key: by_month[key].round(2).tolist()) if len(by_month) > 1 else (
         lambda key: None
     )
 
     metric_columns = st.columns(4)
     trend_help = "Small chart: month by month for this selection."
-    for column, label, key, unit, diff_unit, higher_is_better, icon, help_text in (
+    for column, label, key, unit, diff_unit, higher_is_better, icon, help_text, digits in (
         (metric_columns[0], "On-time arrivals", "punctuality", "%", " pts", True,
-         ":material/schedule:", trend_help),
+         ":material/schedule:", trend_help, 1),
         (metric_columns[1], "Average arrival delay", "delay", " min", " min", False,
-         ":material/timer:", trend_help),
+         ":material/timer:", trend_help, 1),
         (metric_columns[2], "Cancelled arrivals", "cancelled", "%", " pts", False,
-         ":material/cancel:", trend_help),
-        # How bad lateness gets: DB also reports punctuality at a 15-minute threshold.
-        (metric_columns[3], "16+ min late", "late16", "%", " pts", False,
-         ":material/hourglass_bottom:",
-         "Share of arrivals 16 or more minutes late, the trains that missed even DB's "
-         "15-minute punctuality threshold (often a missed connection). " + trend_help),
+         ":material/cancel:", trend_help, 1),
+        (metric_columns[3], "Delay added per stop", "added", " min", " min", False,
+         ":material/trending_up:",
+         "Minutes of lateness a train picks up per stop in this area, on the way in and "
+         "while standing. Unlike the average delay it leaves out lateness trains bring in "
+         "from elsewhere, so it shows where delays start. " + trend_help, 2),
     ):
         value = shown[key]
         delta = None
         if is_state and not pd.isna(value):
             # Plain ASCII sign: Streamlit reads it to choose the arrow and color.
-            delta = f"{value - germany[key]:+.1f}{diff_unit}"
+            delta = f"{value - germany[key]:+.{digits}f}{diff_unit}"
         column.metric(
             label,
-            "–" if pd.isna(value) else f"{value:.1f}{unit}",
+            "–" if pd.isna(value) else f"{value:.{digits}f}{unit}",
             delta,
             delta_color="normal" if higher_is_better else "inverse",
             delta_description="vs Germany" if delta else None,
