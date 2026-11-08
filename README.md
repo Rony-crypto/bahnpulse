@@ -41,33 +41,14 @@ added per stop, ...) is explained in plain language in [docs/definitions.md](doc
 ## How it works
 
 ```mermaid
-flowchart TB
-  subgraph Sources
-    S1["S1 stop history<br/>monthly Parquet, Hugging Face"]
-    S3["S3 station data<br/>DB API Marketplace"]
-    S4["S4 state shapes<br/>Natural Earth"]
-  end
-  subgraph Pipeline["GitHub Actions, monthly"]
-    ING["Ingest<br/>dbp.ingest"]
-    DBT["dbt on DuckDB<br/>staging → intermediate →<br/>star schema → marts<br/>48 data tests"]
-    PUB["Published marts<br/>Parquet in data/published"]
-  end
-  subgraph App["Streamlit Community Cloud"]
-    DASH["Dashboard<br/>Germany · Hamburg"]
-    CHAT["Ask AI chat"]
-    LLM["LLM (Groq)<br/>writes SQL, words the answer"]
-    SBX["Read-only DuckDB sandbox"]
-  end
-  S1 --> ING
-  S3 --> ING
-  ING --> DBT --> PUB
-  PUB --> DASH
-  S4 --> DASH
-  DASH --- CHAT
-  CHAT --> LLM
-  LLM -- "SQL" --> SBX
-  PUB --> SBX
-  SBX -- "result rows" --> LLM
+flowchart LR
+  SRC["Raw data<br/>stops + stations"] -->|monthly| DBT["dbt + DuckDB<br/>48 tests"]
+  DBT --> MARTS[("Published<br/>marts")]
+  MARTS --> DASH["Dashboard"]
+  MARTS --> SBX["Read-only<br/>SQL sandbox"]
+  CHAT["Ask AI chat"] -->|question| LLM["LLM (Groq)<br/>writes SQL"]
+  LLM -->|SQL| SBX
+  SBX -->|numbers| CHAT
 ```
 
 - **Ingest:** each month the raw stop history (S1, about 600 MB per month) and DB station data
