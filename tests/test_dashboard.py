@@ -71,9 +71,11 @@ def test_headline_kpis_weights_states_by_volume():
     summary = pd.DataFrame(
         [
             {"planned_stop_count": 100, "cancelled_arrival_count": 90, "arrival_count": 80,
-             "on_time_arrival_count": 40, "avg_arrival_delay_min": 10.0},
+             "on_time_arrival_count": 40, "avg_arrival_delay_min": 10.0,
+             "delay_16_30_count": 20, "delay_31_60_count": 6, "delay_over_60_count": 2},
             {"planned_stop_count": 300, "cancelled_arrival_count": 10, "arrival_count": 320,
-             "on_time_arrival_count": 288, "avg_arrival_delay_min": 2.5},
+             "on_time_arrival_count": 288, "avg_arrival_delay_min": 2.5,
+             "delay_16_30_count": 16, "delay_31_60_count": 4, "delay_over_60_count": 0},
         ]
     )
 
@@ -83,18 +85,21 @@ def test_headline_kpis_weights_states_by_volume():
     assert kpis["delay"] == 4
     # Cancelled share of planned arrivals: 100 cancelled of 500 planned.
     assert kpis["cancelled"] == 20
+    # 16+ minutes late: (28 + 20) of 400 arrivals.
+    assert kpis["late16"] == 12
     assert kpis["stops"] == 400
 
 
 def test_headline_kpis_handles_empty_selection():
     empty = pd.DataFrame(
         columns=["planned_stop_count", "cancelled_arrival_count", "arrival_count",
-                 "on_time_arrival_count", "avg_arrival_delay_min"]
+                 "on_time_arrival_count", "avg_arrival_delay_min", "delay_16_30_count",
+                 "delay_31_60_count", "delay_over_60_count"]
     )
 
     kpis = headline_kpis(empty)
 
-    assert pd.isna(kpis["punctuality"]) and kpis["stops"] == 0
+    assert pd.isna(kpis["punctuality"]) and pd.isna(kpis["late16"]) and kpis["stops"] == 0
 
 
 def test_delay_breakdown_shares_add_up_per_train_type():

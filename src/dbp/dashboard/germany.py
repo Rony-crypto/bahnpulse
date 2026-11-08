@@ -157,13 +157,19 @@ def render_germany(
     )
 
     metric_columns = st.columns(4)
-    for column, label, key, unit, diff_unit, higher_is_better, icon in (
+    trend_help = "Small chart: month by month for this selection."
+    for column, label, key, unit, diff_unit, higher_is_better, icon, help_text in (
         (metric_columns[0], "On-time arrivals", "punctuality", "%", " pts", True,
-         ":material/schedule:"),
+         ":material/schedule:", trend_help),
         (metric_columns[1], "Average arrival delay", "delay", " min", " min", False,
-         ":material/timer:"),
+         ":material/timer:", trend_help),
         (metric_columns[2], "Cancelled arrivals", "cancelled", "%", " pts", False,
-         ":material/cancel:"),
+         ":material/cancel:", trend_help),
+        # How bad lateness gets: DB also reports punctuality at a 15-minute threshold.
+        (metric_columns[3], "16+ min late", "late16", "%", " pts", False,
+         ":material/hourglass_bottom:",
+         "Share of arrivals 16 or more minutes late, the trains that missed even DB's "
+         "15-minute punctuality threshold (often a missed connection). " + trend_help),
     ):
         value = shown[key]
         delta = None
@@ -179,19 +185,8 @@ def render_germany(
             icon=icon,
             chart_data=sparkline(key),
             chart_type="area",
-            help="Small chart: month by month for this selection.",
+            help=help_text,
         )
-    stops_share = 100 * shown["stops"] / germany["stops"] if germany["stops"] else 0
-    metric_columns[3].metric(
-        "Planned stops",
-        f"{shown['stops']:,}",
-        f"{stops_share:.1f}% of Germany" if is_state else None,
-        delta_color="off",
-        delta_arrow="off",
-        icon=":material/train:",
-        chart_data=sparkline("stops"),
-        chart_type="bar",
-    )
 
     map_column, ranking_column = st.columns([0.85, 1.15])
     with map_column, st.container(border=True, key="card_map"):

@@ -38,6 +38,8 @@ GROUP_ORDER = ["ICE", "IC/EC", "RE", "RB", "S", "Other"]
 MIN_STATION_ARRIVALS = 100
 # A month gets a data-gap warning from this many low-data hours (about one day missing).
 GAP_HOURS_WARN = 24
+# Arrivals 16+ minutes late: missed DB's second punctuality threshold (15 minutes).
+LATE_16_COLUMNS = ["delay_16_30_count", "delay_31_60_count", "delay_over_60_count"]
 
 
 def mart_signature() -> tuple[tuple[str, int], ...]:
@@ -95,6 +97,7 @@ def summarize_states(frame: pd.DataFrame) -> pd.DataFrame:
         cancelled_arrival_count=("cancelled_arrival_count", "sum"),
         arrival_count=("arrival_count", "sum"),
         on_time_arrival_count=("on_time_arrival_count", "sum"),
+        **{column: (column, "sum") for column in LATE_16_COLUMNS},
     )
     delay_totals = frame.assign(
         delay_total=frame["avg_arrival_delay_min"] * frame["arrival_count"]
@@ -135,6 +138,7 @@ def headline_kpis(summary: pd.DataFrame) -> dict[str, float]:
     stops = summary["planned_stop_count"].sum()
     delay_total = (summary["avg_arrival_delay_min"] * summary["arrival_count"]).sum()
     cancelled = summary["cancelled_arrival_count"].sum()
+    late_16 = summary[LATE_16_COLUMNS].to_numpy().sum()
     return {
         "punctuality": (
             100 * summary["on_time_arrival_count"].sum() / arrivals if arrivals else math.nan
@@ -143,6 +147,7 @@ def headline_kpis(summary: pd.DataFrame) -> dict[str, float]:
         "cancelled": (
             100 * cancelled / (cancelled + arrivals) if cancelled + arrivals else math.nan
         ),
+        "late16": 100 * late_16 / arrivals if arrivals else math.nan,
         "stops": int(stops),
     }
 
