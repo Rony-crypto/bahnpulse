@@ -74,6 +74,29 @@ S4 state shapes (Natural Earth) ───┘                         │
   their true first to their true last station are used to split delay, and the split is
   checked to account for every minute.
 
+## Project structure
+
+```
+bahnpulse/
+├── src/dbp/
+│   ├── ingest/        # download raw data: S1 stop history, S3 station data (DB API)
+│   ├── profile/       # profiling of the raw stop data
+│   ├── transform/     # trip rebuilding for the "where delays start" marts
+│   ├── publish/       # new-month check, export of marts for the app
+│   ├── ask/           # AI chat: SQL sandbox, LLM clients, agent, evaluation
+│   ├── dashboard/     # Streamlit pages, charts, theme, chat widget
+│   └── bahnpulse_app.py
+├── dbt/
+│   ├── models/        # staging → intermediate → marts (schema.yml documents every column)
+│   ├── tests/         # business-rule tests (delay split adds up, full weeks, ...)
+│   └── seeds/         # train type code → train group mapping
+├── tests/             # Python unit tests (pytest)
+├── data/published/    # exported marts the app reads (raw data is not committed)
+├── docs/              # method notes, definitions, AI evaluation, screenshots
+├── config/            # Hamburg hubs, station → state overrides, state boundaries
+└── .github/workflows/ # CI (lint, tests, dbt parse, secret scan) and the monthly refresh
+```
+
 ## Ask the data (AI)
 
 The dashboard's floating "Ask AI" chat (bottom right, on every page) answers questions in

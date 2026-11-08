@@ -1,7 +1,7 @@
 [project]
 name = "bahnpulse"
 version = "0.1.0"
-description = "Germany-wide Deutsche Bahn punctuality platform: monthly history, 15-min hub collector, dbt model, Streamlit app and AI question answering."
+description = "Where Deutsche Bahn delays come from: monthly stop history, tested dbt/DuckDB model, Streamlit dashboard and an AI chat answered with checked SQL."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

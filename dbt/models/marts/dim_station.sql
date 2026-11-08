@@ -8,4 +8,4 @@ SELECT
     try_cast(latitude AS DOUBLE) AS latitude,
     try_cast(category AS INTEGER) AS category,
     mapping_source
-FROM read_csv('{{ var("station_state_map") }}', all_varchar=true)
+FROM {{ source('s3', 'station_state_map') }}

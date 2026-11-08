@@ -1,168 +1,463 @@
 version: 2
 
+# Plain-language meaning of every measure: docs/definitions.md. Run `dbt docs generate` and
+# `dbt docs serve` (with --project-dir dbt --profiles-dir dbt) to browse models and lineage.
+
 models:
+  # --- Staging and intermediate (views) ---
+  - name: stg_s1
+    description: >
+      S1 stop history with clean types and names: one row per stop event. EVA numbers are
+      normalised to 7 digits, blank text becomes NULL, and service_time is the planned arrival
+      (or the planned departure at a train's first station). No rows are removed here.
+    columns:
+      - name: stop_record_id
+        description: Source row id; unique per stop event.
+      - name: service_time
+        description: Planned arrival, else planned departure. Months, days and hours follow it.
+      - name: source_month
+        description: Month of the source file the row came from.
+
+  - name: int_s1_classified
+    description: >
+      Stop events with a train group (ICE, IC/EC, RE, RB, S, Bus, Other) and data-quality
+      flags. The line name (RE1, RB26, S3) decides the group when present, otherwise the train
+      type code via the train_type_map seed. Bare line numbers get their prefix ("7" → "RE7").
+    columns:
+      - name: train_group
+        description: ICE, IC/EC, RE, RB, S, Bus (rail replacement) or Other.
+      - name: is_grouped_by_line
+        description: True when the line name, not the type code, decided the group.
+      - name: is_junk
+        description: Missing train type, train number or delay; excluded from all figures.
+      - name: is_rail_service
+        description: False for rail replacement buses; excluded from rail punctuality.
+
+  # --- Dimensions ---
   - name: dim_station
+    description: One row per station with its federal state (from StaDa, source s3).
     columns:
       - name: station_key
+        description: 7-digit EVA station number.
         data_tests:
           - not_null
           - unique
+      - name: station_name
+        description: Station name as in DB timetables, e.g. Hamburg Hbf.
       - name: federal_state
+        description: German federal state of the station.
         data_tests:
           - not_null
+      - name: longitude
+        description: Station longitude (WGS 84).
+      - name: latitude
+        description: Station latitude (WGS 84).
+      - name: category
+        description: DB station category (1 = largest hubs ... 7 = smallest halts).
+      - name: mapping_source
+        description: How the state was found (StaDa, or an explicit override).
   - name: dim_train_type
+    description: >
+      Raw train type codes and their fallback group from the train_type_map seed. A stop's own
+      group can differ when its line name decides it (see int_s1_classified).
     columns:
       - name: train_type_key
+        description: Raw train type code, plus '(blank/unknown)' and '(unmapped)'.
         data_tests:
           - not_null
           - unique
+      - name: raw_type
+        description: Raw train type code as in the source.
       - name: train_group
+        description: Fallback group for the code.
         data_tests:
           - accepted_values:
               arguments:
                 values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Bus', 'Other']
+      - name: is_long_distance
+        description: True for ICE and IC/EC.
   - name: dim_line
+    description: One row per train group and line name (RE1, S3, ...).
     columns:
       - name: line_key
+        description: Train group and line name, e.g. 'RE|RE1'.
         data_tests:
           - not_null
           - unique
+      - name: line_name
+        description: Line name, NULL when the source has none.
+      - name: train_type_key
+        description: Train group of the line.
   - name: dim_date
+    description: One row per day between the first and last day in the data.
     columns:
       - name: date_key
+        description: Calendar day.
         data_tests:
           - not_null
           - unique
+      - name: year
+        description: Calendar year.
+      - name: month
+        description: Calendar month (1-12).
+      - name: weekday_name
+        description: Weekday name, e.g. Monday.
+      - name: is_weekend
+        description: True on Saturday and Sunday.
   - name: dim_hour
+    description: The 24 hours of the day.
     columns:
       - name: hour_key
+        description: Hour of the day (0-23).
         data_tests:
           - not_null
           - unique
+      - name: peak_flag
+        description: True for 06:00-08:59 and 16:00-18:59.
+
+  # --- Fact ---
   - name: fct_stop_event
+    description: >
+      One row per stop event, the grain of every aggregate. Arrival and departure delays are
+      derived from the timestamps, because the source's delay_in_min is the departure delay at
+      every stop except the last.
     columns:
       - name: stop_event_id
+        description: Unique stop event id (source row id).
         data_tests:
           - not_null
           - unique
       - name: station_key
+        description: Station (dim_station).
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_station')
                 field: station_key
       - name: train_type_key
+        description: Raw train type code (dim_train_type).
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_train_type')
                 field: train_type_key
+      - name: train_group
+        description: ICE, IC/EC, RE, RB, S, Bus or Other.
+      - name: line_key
+        description: Line (dim_line).
+      - name: train_line_ride_id
+        description: Source ride id; repeats on every day a train runs, so it is not a trip id.
+      - name: train_line_station_num
+        description: Position of the stop on the ride (1 = first station).
+      - name: service_time
+        description: Planned arrival, else planned departure.
+      - name: service_month
+        description: First day of the month of service_time.
       - name: date_key
+        description: Day of service_time (dim_date).
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_date')
                 field: date_key
       - name: hour_key
+        description: Hour of service_time (dim_hour).
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_hour')
                 field: hour_key
-  - name: agg_hamburg_weekly
-    columns:
-      - name: item_kind
-        data_tests:
-          - accepted_values:
-              arguments:
-                values: ['line', 'station', 'train_type']
-      - name: service_week
-        data_tests:
-          - not_null
-      - name: cancelled_arrival_count
-        data_tests:
-          - not_null
-      - name: train_group
-        data_tests:
-          - accepted_values:
-              arguments:
-                values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Other']
+      - name: arrival_delay_min
+        description: Actual minus planned arrival in whole minutes; negative = early.
+      - name: departure_delay_min
+        description: Actual minus planned departure in whole minutes; negative = early.
+      - name: arrival_is_canceled
+        description: The planned arrival was cancelled.
+      - name: departure_is_canceled
+        description: The planned departure was cancelled.
+      - name: is_cancelled
+        description: Arrival or departure cancelled.
+      - name: is_junk
+        description: Missing train type, number or delay; excluded from all figures.
+      - name: is_rail_service
+        description: False for rail replacement buses.
+
+  # --- Aggregates for the dashboard (exported to data/published/marts) ---
   - name: agg_state_month_type
+    description: >
+      Punctuality and cancellations per federal state, month and train group. Counts only, so
+      any selection can be re-aggregated correctly; the *_pct columns are for this grain only.
     columns:
       - name: federal_state
+        description: Federal state of the station.
         data_tests:
           - not_null
+      - name: service_month
+        description: First day of the month.
       - name: train_group
+        description: ICE, IC/EC, RE, RB, S or Other (Bus excluded).
         data_tests:
           - accepted_values:
               arguments:
                 values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Other']
-  - name: agg_month_coverage
+      - name: planned_stop_count
+        description: All stop events in the timetable.
+      - name: cancelled_stop_count
+        description: Stop events with the arrival or departure cancelled.
+      - name: arrival_count
+        description: Planned arrivals that ran with a known delay; the punctuality base.
+      - name: on_time_arrival_count
+        description: Arrivals less than 6 minutes late (DB definition).
+      - name: delay_6_15_count
+        description: Arrivals 6-15 minutes late.
+      - name: delay_16_30_count
+        description: Arrivals 16-30 minutes late.
+      - name: delay_31_60_count
+        description: Arrivals 31-60 minutes late.
+      - name: delay_over_60_count
+        description: Arrivals more than 60 minutes late.
+      - name: cancelled_arrival_count
+        description: Planned arrivals that were cancelled.
+      - name: punctuality_pct
+        description: on_time_arrival_count / arrival_count × 100.
+      - name: avg_arrival_delay_min
+        description: Mean arrival lateness, early arrivals counted as 0.
+      - name: cancellation_pct
+        description: cancelled_arrival_count / (arrival_count + cancelled_arrival_count) × 100.
+  - name: agg_station_month_type
+    description: The same measures as agg_state_month_type, per station.
     columns:
+      - name: station_key
+        description: Station (dim_station).
+        data_tests:
+          - not_null
+      - name: station_name
+        description: Station name.
+      - name: federal_state
+        description: Federal state of the station.
+        data_tests:
+          - not_null
       - name: service_month
-        data_tests:
-          - not_null
-          - unique
-      - name: low_data_hours
-        data_tests:
-          - not_null
+        description: First day of the month.
+      - name: train_group
+        description: ICE, IC/EC, RE, RB, S or Other.
+      - name: planned_stop_count
+        description: All stop events in the timetable.
+      - name: cancelled_stop_count
+        description: Stop events with the arrival or departure cancelled.
+      - name: arrival_count
+        description: Planned arrivals that ran with a known delay.
+      - name: on_time_arrival_count
+        description: Arrivals less than 6 minutes late.
+      - name: cancelled_arrival_count
+        description: Planned arrivals that were cancelled.
+      - name: punctuality_pct
+        description: on_time_arrival_count / arrival_count × 100.
+      - name: avg_arrival_delay_min
+        description: Mean arrival lateness, early arrivals counted as 0.
+      - name: cancellation_pct
+        description: Cancelled share of planned arrivals.
   - name: agg_state_hour_weekday
+    description: Arrivals and on-time arrivals by state, month, train group, weekday and hour.
     columns:
       - name: federal_state
+        description: Federal state of the station.
         data_tests:
           - not_null
+      - name: service_month
+        description: First day of the month.
+      - name: train_group
+        description: ICE, IC/EC, RE, RB, S or Other.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Other']
       - name: iso_weekday
+        description: 1 = Monday ... 7 = Sunday.
         data_tests:
           - accepted_values:
               arguments:
                 values: [1, 2, 3, 4, 5, 6, 7]
       - name: service_hour
+        description: Planned hour (0-23).
         data_tests:
           - not_null
+      - name: arrival_count
+        description: Planned arrivals that ran with a known delay.
+      - name: on_time_arrival_count
+        description: Arrivals less than 6 minutes late.
+  - name: agg_hamburg_weekly
+    description: >
+      Hamburg deep dive: weekly punctuality per line, station or train group, split into
+      weekday peak (Mon-Fri 06:00-08:59 and 16:00-18:59) and off-peak. Full weeks only.
+    columns:
+      - name: item_kind
+        description: What the row compares - a line, a station or a train type.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['line', 'station', 'train_type']
+      - name: item_key
+        description: Line name, station name or train group, depending on item_kind.
+      - name: station_key
+        description: Station (dim_station); NULL on line rows.
+      - name: station_name
+        description: Station name; NULL on line rows.
+      - name: service_week
+        description: Monday of the week.
+        data_tests:
+          - not_null
+      - name: time_slot
+        description: Weekday peak or Off-peak.
       - name: train_group
+        description: ICE, IC/EC, RE, RB, S or Other.
         data_tests:
           - accepted_values:
               arguments:
                 values: ['ICE', 'IC/EC', 'RE', 'RB', 'S', 'Other']
-  - name: agg_station_month_type
+      - name: stop_count
+        description: All stop events.
+      - name: arrival_count
+        description: Planned arrivals that ran with a known delay.
+      - name: on_time_arrival_count
+        description: Arrivals less than 6 minutes late.
+      - name: cancelled_arrival_count
+        description: Planned arrivals that were cancelled.
+        data_tests:
+          - not_null
+      - name: delay_count
+        description: Arrivals with a known delay (the average delay base).
+      - name: delay_total_min
+        description: Sum of arrival lateness, early arrivals counted as 0.
+      - name: punctuality_pct
+        description: on_time_arrival_count / arrival_count × 100.
+      - name: avg_arrival_delay_min
+        description: delay_total_min / delay_count.
+  - name: agg_hourly_coverage
+    description: >
+      Data completeness per hour and train group: how many stops have a delay value and a
+      change time. Used to find hours the source failed to collect.
     columns:
-      - name: station_key
-        data_tests:
-          - not_null
-      - name: federal_state
-        data_tests:
-          - not_null
-  - name: agg_delay_sources
+      - name: service_hour
+        description: Start of the hour.
+      - name: train_group
+        description: Train group.
+      - name: planned_stop_count
+        description: All stop events in the hour.
+      - name: delay_count
+        description: Stops with a delay value.
+      - name: change_time_count
+        description: Stops with an actual (changed) arrival or departure time.
+      - name: delay_coverage_pct
+        description: delay_count / planned_stop_count × 100.
+      - name: change_time_coverage_pct
+        description: change_time_count / planned_stop_count × 100.
+  - name: agg_month_coverage
+    description: >
+      Data completeness per month. A low-data hour has under half the usual stops for that
+      weekday and hour; 24 or more of them mark a month as incomplete on the dashboard.
     columns:
       - name: service_month
+        description: First day of the month.
+        data_tests:
+          - not_null
+          - unique
+      - name: hour_count
+        description: Hours with any data.
+      - name: low_data_hours
+        description: Hours with under half the typical stop volume.
+        data_tests:
+          - not_null
+      - name: volume_completeness_pct
+        description: Stops collected / stops expected from typical volume × 100.
+
+  # --- Where delays start (dbt Python models; logic in dbp.transform.delay_spread) ---
+  - name: agg_delay_sources
+    description: >
+      Complete trips (true first to true last station) per month, train group and whether they
+      ended 6+ minutes late, with their lateness split into origin, running and dwell parts.
+      assert_delay_sources_add_up checks the parts add up to the final lateness.
+    columns:
+      - name: service_month
+        description: First day of the month.
         data_tests:
           - not_null
       - name: train_group
+        description: ICE, IC/EC, RE, RB or S.
         data_tests:
           - accepted_values:
               arguments:
                 values: ['ICE', 'IC/EC', 'RE', 'RB', 'S']
+      - name: ends_late
+        description: The trip reached its last station 6+ minutes late.
       - name: trip_count
+        description: Complete trips.
         data_tests:
           - not_null
+      - name: origin_late_min
+        description: Lateness on leaving the first station.
+      - name: running_added_min
+        description: Lateness gained between stations.
+      - name: running_recovered_min
+        description: Lateness won back between stations (negative).
+      - name: dwell_added_min
+        description: Lateness gained while standing at stations.
+      - name: dwell_recovered_min
+        description: Lateness won back while standing at stations (negative).
+      - name: final_late_min
+        description: Lateness at the last station.
   - name: agg_station_delay_gain
+    description: >
+      Delay minutes added per station (by name), month and train group: on the way in
+      (running, credited to the station reached) and while standing there (dwell).
     columns:
       - name: station_name
+        description: Station name (separate S-Bahn platforms count as one station).
         data_tests:
           - not_null
       - name: federal_state
+        description: Federal state of the station.
         data_tests:
           - not_null
+      - name: service_month
+        description: First day of the month.
       - name: train_group
+        description: ICE, IC/EC, RE, RB or S.
         data_tests:
           - accepted_values:
               arguments:
                 values: ['ICE', 'IC/EC', 'RE', 'RB', 'S']
+      - name: measured_stop_count
+        description: Stops where a running or dwell gain could be measured.
+      - name: running_added_min
+        description: Lateness gained on the way in from the previous station.
+      - name: running_recovered_min
+        description: Lateness won back on the way in (negative).
+      - name: dwell_added_min
+        description: Lateness gained while standing at the station.
+      - name: dwell_recovered_min
+        description: Lateness won back while standing (negative).
+      - name: delay_start_count
+        description: Trains that first became 6+ minutes late here.
   - name: agg_delay_along_route
+    description: >
+      Lateness by position on the route (0 = first station ... 100 = last, steps of 10%) for
+      complete trips with 5 or more stops.
     columns:
+      - name: service_month
+        description: First day of the month.
+      - name: train_group
+        description: ICE, IC/EC, RE, RB or S.
       - name: route_pct
+        description: Position on the route in percent, rounded to 10.
         data_tests:
           - not_null
           - accepted_values:
               arguments:
                 values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      - name: stop_count
+        description: Stops at this route position.
+      - name: late_min
+        description: Sum of lateness at these stops.
+      - name: late_stop_count
+        description: Stops 6+ minutes late.

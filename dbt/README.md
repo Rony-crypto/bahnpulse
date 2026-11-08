@@ -1,7 +1,8 @@
 # dbt project
 
-DuckDB-backed dbt project implementing the first S1 history slice from the TRD. Run from the
-repository root after downloading S1 and StaDa data:
+DuckDB-backed dbt project: raw stop history (source `s1`) and station data (source `s3`) →
+staging → intermediate → star schema and dashboard marts. Run from the repository root after
+downloading S1 and StaDa data:
 
 ```bash
 uv run dbt build --project-dir dbt --profiles-dir dbt
@@ -15,6 +16,13 @@ with dbt vars in `dbt_project.yml`.
 
 Layers: `staging` (views) -> `intermediate` (classification) -> `marts` (facts, dimensions,
 aggregates).
+
+Every model and column is described in `models/schema.yml`; browse them with the lineage graph:
+
+```bash
+uv run dbt docs generate --project-dir dbt --profiles-dir dbt
+uv run dbt docs serve --project-dir dbt --profiles-dir dbt
+```
 
 ## S1 modeling contract
 

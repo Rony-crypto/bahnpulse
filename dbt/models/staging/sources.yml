@@ -1,0 +1,35 @@
+version: 2
+
+# Raw files, downloaded by dbp.ingest (see the README quick start). dbt-duckdb reads them in
+# place through external_location; paths come from the vars in dbt_project.yml.
+sources:
+  - name: s1
+    description: >
+      Historical stop data: one Parquet file per month from piebro/deutsche-bahn-data
+      (Hugging Face, CC BY 4.0), built from the Deutsche Bahn Timetables API. Downloaded by
+      dbp.ingest.download_s1.
+    tables:
+      - name: stop_history
+        description: >
+          One row per stop event (a train at a station on a day) with planned and changed
+          arrival/departure times, cancellation flags, train type, line and ride id.
+          filename is kept so each row's source month is known.
+        config:
+          meta:
+            external_location: >-
+              read_parquet('{{ var("s1_parquet_glob") }}', filename = true)
+
+  - name: s3
+    description: >
+      Station master data from the DB API Marketplace (StaDa), reduced by
+      dbp.ingest.download_s3 to a station → federal state lookup.
+    tables:
+      - name: station_state_map
+        description: >
+          One row per station (EVA number) with name, federal state, coordinates, category and
+          how the state was mapped (StaDa or an explicit override for stations StaDa no
+          longer lists).
+        config:
+          meta:
+            external_location: >-
+              read_csv('{{ var("station_state_map") }}', all_varchar = true)

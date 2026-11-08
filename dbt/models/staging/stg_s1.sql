@@ -29,4 +29,4 @@ SELECT
     CAST(
         regexp_extract(filename, 'data-(\d{4}-\d{2})\.parquet$', 1) || '-01' AS DATE
     ) AS source_month
-FROM read_parquet('{{ var("s1_parquet_glob") }}', filename = true)
+FROM {{ source('s1', 'stop_history') }}
