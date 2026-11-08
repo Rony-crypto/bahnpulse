@@ -1,127 +1,129 @@
-# Definitions
+# What the numbers mean
 
-Every measure, filter and term used in BahnPulse, as the code computes it. Where a definition
-lives in code, the file is named so it can be checked.
+Plain-language explanations of every measure in BahnPulse. The exact calculations are in the
+code; the file behind each section is named at its end.
 
-All rates are computed from summed counts (sum first, then divide), never by averaging
-percentages, so a busy station or state weighs more than a quiet one.
+All percentages are worked out from totals (add up all trains first, then divide), so a busy
+station counts more than a quiet one.
 
-## Data basics
+## The basics
 
-| Term | Definition |
-| --- | --- |
-| **Stop event** | One train at one station on one day: one row of the source data (S1). It has a planned and actual arrival and/or departure time. |
-| **Planned stop** | Every stop event in the timetable, whether it ran or was cancelled. |
-| **Service time** | The planned arrival time, or the planned departure time at a train's first station. Months, weeks, days and hours are all assigned by this time. |
-| **Month** | Calendar month of the service time. A trip running past midnight at the end of a month is split between the two months. |
-| **Federal state** | The state of the station, from DB's station data (S3, StaDa). |
-| **Excluded records** | Rows without a train type, train number or delay value (`is_junk`), and rail replacement buses (`Bus`). Both are left out of every figure. |
+- **Stop:** one train at one station on one day. The data has one record per stop.
+- **Planned stop:** a stop in the timetable, whether the train came or not.
+- **Month / hour:** when the train was *scheduled* to be there, not when it actually came.
+- **Federal state:** the state the station is in.
+- **Left out:** records with missing information (no train type, number or delay) and rail
+  replacement buses. They are not in any figure.
 
-Source: `dbt/models/staging/stg_s1.sql`, `dbt/models/intermediate/int_s1_classified.sql`,
-`dbt/models/marts/fct_stop_event.sql`.
+*Code: `dbt/models/staging/stg_s1.sql`, `dbt/models/marts/fct_stop_event.sql`*
 
 ## Train types
 
-| Group | Meaning |
-| --- | --- |
-| **ICE** | InterCity Express (long-distance high-speed). |
-| **IC/EC** | InterCity and EuroCity (other long-distance trains). |
-| **RE** | Regional Express. |
-| **RB** | Regional train (Regionalbahn). |
-| **S** | S-Bahn (suburban rail). |
-| **Other** | Special trains and services that fit no group. Shown in some views, left out of comparisons where it would distort the scale. |
-| **Long-distance** | ICE + IC/EC. |
-| **Regional** | RE + RB. |
+- **ICE:** DB's high-speed long-distance trains.
+- **IC/EC:** the other long-distance trains (InterCity, EuroCity).
+- **RE:** Regional Express, faster regional trains with fewer stops.
+- **RB:** Regionalbahn, regional trains that stop everywhere.
+- **S:** S-Bahn, suburban trains in and around cities.
+- **Other:** special trains that fit none of the groups.
+- **Long-distance:** ICE + IC/EC. **Regional:** RE + RB.
 
-A train's group comes from its **line name** when it has one (RE1, RB26, S3), otherwise from
-its train type code (ICE, IC, EC). Operator codes alone are not used, because one operator
-often runs both RE and RB lines. Source: `int_s1_classified.sql`, seed `train_type_map`.
+A train's type comes from its line name (RE1, RB26, S3) when it has one, because one operator
+often runs both RE and RB lines under the same code.
+
+*Code: `dbt/models/intermediate/int_s1_classified.sql`*
 
 ## Punctuality
 
-| Measure | Definition |
-| --- | --- |
-| **Arrival delay** | Actual arrival time minus planned arrival time, in whole minutes. Negative = early. Derived from the timestamps, because the source's own delay field is the departure delay at every stop but the last. |
-| **Arrival (that ran)** | A planned arrival that was not cancelled and has a known delay. The base for all punctuality measures. |
-| **On time** | An arrival less than 6 minutes late (0:00 to 5:59), DB's own definition. Early arrivals count as on time. |
-| **On-time arrivals (%)** | On-time arrivals ÷ arrivals that ran × 100. |
-| **Average arrival delay (min)** | Mean arrival delay of arrivals that ran, with early arrivals counted as 0 minutes late. So it is the average *lateness*, not reduced by early trains. |
-| **Delay bands** | Arrivals that ran, split by lateness: on time (under 6 min), 6–15, 16–30, 31–60 and over 60 minutes late. The bands add up to all arrivals that ran. |
+- **Arrival delay:** how many minutes after its scheduled time a train arrives. An early train
+  counts as 0 minutes late.
+- **On time:** a train that arrives less than 6 minutes late. This is DB's own definition, so a
+  train 5 minutes late is still "on time".
+- **On-time arrivals (%):** out of all trains that arrived, the share that were on time.
+- **Average arrival delay:** how late a train is when it arrives, all its lateness so far,
+  averaged over all arrivals.
+- **Delay bands:** arrivals grouped by how late they were: on time, 6–15, 16–30, 31–60 and over
+  60 minutes late.
 
-Source: `dbt/models/marts/agg_state_month_type.sql` (same definitions in the station, hour
-and Hamburg marts).
+> Example: three trains arrive 0, 4 and 11 minutes late. Two of three are on time (67%); the
+> average arrival delay is (0 + 4 + 11) ÷ 3 = 5 minutes.
+
+*Code: `dbt/models/marts/agg_state_month_type.sql`*
 
 ## Cancellations
 
-| Measure | Definition |
-| --- | --- |
-| **Cancelled arrival** | A planned arrival marked as cancelled. |
-| **Cancelled arrivals (%)** | Cancelled arrivals ÷ (arrivals that ran + cancelled arrivals) × 100, so the base is all planned arrivals. |
+- **Cancelled arrival:** a train that was scheduled to arrive at a station but did not.
+- **Cancelled arrivals (%):** out of all scheduled arrivals, the share that were cancelled.
 
-Counting on arrivals counts each lost train once, at the station it no longer reached.
-Counting "arrival or departure cancelled" would count a cut-short trip twice.
+Each lost train is counted once, at the station it no longer reached.
 
-## Where delays start (trip-level measures)
+## Where delays start
 
-The source has no trip id, so trips are rebuilt (`src/dbp/transform/delay_spread.py`).
+These measures follow each train along its whole route.
 
-| Term | Definition |
-| --- | --- |
-| **Trip** | The stops of one ride id in time order, until the stop number restarts or the plan jumps by more than 6 hours (the same ride id repeats every day a train runs). |
-| **Lateness** | Delay floored at 0: an early arrival counts as 0 minutes late. |
-| **Complete trip** | A trip seen from its true first station to its true last station: starts at stop 1, has no missing stop, has at least 3 stops, only its first stop lacks a planned arrival and only its last stop lacks a planned departure, and every planned arrival and departure ran with a known delay. Only complete trips are used for the delay split. |
-| **Ends late** | A complete trip that reached its last station 6 or more minutes late. |
-| **Origin lateness** | How late the trip left its first station. |
-| **Running gain** | Lateness on arrival at a stop minus lateness on departure from the previous stop: delay gained (or won back) between stations. Only counted between consecutive stops. |
-| **Dwell gain** | Lateness on departure minus lateness on arrival at the same stop: delay gained (or won back) while standing at a station. |
-| **Added / recovered** | Positive gains are "added", negative gains are "recovered" (timetable buffers winning time back). |
-| **Delay split** | For every complete trip: final lateness = origin lateness + running added + running recovered + dwell added + dwell recovered. A dbt test checks this adds up for every month and train type. |
-| **Share of delay from a source** | For trips that end late: origin, running added or dwell added minutes ÷ (origin + running added + dwell added) minutes. Recovered minutes are left out of the base. |
-| **Delay added per stop** | (Running added + dwell added) minutes ÷ measured stops, for the stations in the selected area. The lateness a train picks up per stop there. Unlike average arrival delay it leaves out lateness brought in from elsewhere, so it shows where delay is created. Recovered minutes are not subtracted. |
-| **Measured stop** | A stop where a running or dwell gain could be measured. |
-| **Delay start** | A stop where a train first becomes 6+ minutes late: it was under 6 minutes late on leaving the previous stop and 6+ late on arrival, or under 6 on arrival and 6+ on departure. |
-| **Route position** | How far along its route a stop is: 0% = first station, 100% = last station, in steps of 10%. Used only for complete trips with 5 or more stops. |
-| **Top 5% of stations** | Stations ranked by delay minutes added; the top 5% by count. Their share of all stops and of all delay added shows how concentrated delay is. |
+- **Trip:** one train's journey from its first station to its last on one day.
+- **Complete trip:** a trip the data covers from its very first to its very last station, with
+  no stop missing. Only complete trips are used below, so nothing is guessed.
+- **Ends late:** a trip that reached its last station 6 or more minutes late.
+- **Delay at the first station:** how late the train already was when it set off.
+- **Delay added between stations (running):** extra lateness picked up while travelling from one
+  station to the next.
+- **Delay added at stations (dwell):** extra lateness picked up while standing at a platform,
+  for example during boarding or while waiting for a free track.
+- **Recovered:** lateness the train wins back, usually through spare time built into the
+  timetable.
+- **Delay split:** a late train's final lateness broken down into where it came from: delay at
+  the first station + delay added between stations + delay added at stations, minus what it
+  won back. The parts always add up to the final lateness.
+- **Delay added per stop:** how much extra lateness a train picks up at each stop: on the way in
+  from the previous station, plus while standing at this one. Unlike average arrival delay, it
+  leaves out lateness the train brought from elsewhere, so it shows where delay is created.
+- **Delay start:** the station where a train first becomes 6 or more minutes late.
+- **Route position:** how far along its journey a train is: 0% at the first station, 100% at
+  the last.
+- **Top 5% of stations:** the 5% of stations that add the most delay. Their share of all delay
+  shows how much a few busy hubs matter.
 
-Source: `src/dbp/transform/delay_spread.py`, marts `agg_delay_sources`,
-`agg_station_delay_gain`, `agg_delay_along_route`, test `assert_delay_sources_add_up`.
+> Example: a train leaves the previous station 4 minutes late and arrives in Hamburg 5 minutes
+> late. It stands a minute too long and leaves 6 minutes late. For **average arrival delay** it
+> counts as 5 minutes. For **delay added per stop** at Hamburg it counts as 2 minutes: 1 on the
+> way in, plus 1 standing.
+
+*Code: `src/dbp/transform/delay_spread.py`*
 
 ## Time views
 
-| Term | Definition |
-| --- | --- |
-| **Hour** | Hour (0–23) of the service time. |
-| **Weekday** | ISO weekday of the service time, 1 = Monday to 7 = Sunday. |
-| **Week (Hamburg)** | Monday-to-Sunday week. Only complete weeks inside the data are shown. |
-| **Weekday peak (Hamburg)** | Monday to Friday, 06:00–08:59 and 16:00–18:59 (service time). |
-| **Off-peak (Hamburg)** | Every other hour, including all weekend hours. |
+- **Hour:** the scheduled hour of the stop (0–23).
+- **Weekday:** Monday to Sunday.
+- **Week (Hamburg page):** Monday to Sunday; only full weeks are shown.
+- **Weekday peak (Hamburg page):** Monday to Friday, 6–9 am and 4–7 pm, when commuters travel.
+- **Off-peak (Hamburg page):** all other times, including weekends.
 
 ## Data quality
 
-| Term | Definition |
-| --- | --- |
-| **Low-data hour** | An hour with under half the usual number of stops, compared with the median for the same weekday and hour in that month. Marks hours the source failed to collect. |
-| **Incomplete month** | A month with 24 or more low-data hours (about a day missing). Flagged on the dashboard; Nov 2025 and Jul 2026 so far. |
-| **Volume completeness (%)** | Stops collected ÷ stops expected from the typical hourly volume, per month. |
+- **Low-data hour:** an hour where the source collected less than half the usual number of
+  trains, a sign it missed data rather than trains not running.
+- **Incomplete month:** a month with about a day or more of low-data hours. The dashboard marks
+  these months (Nov 2025 and Jul 2026 so far).
 
-Source: `dbt/models/marts/agg_month_coverage.sql`.
+*Code: `dbt/models/marts/agg_month_coverage.sql`*
 
 ## Dashboard rules
 
-| Rule | Definition |
-| --- | --- |
-| **Station rankings** | Only stations with at least 100 arrivals (or 100 measured stops) in the selected period, so a station with a handful of trains cannot top a list by chance. |
-| **"vs Germany"** | The selected state's value minus the value for all of Germany, with the same train types and months. |
+- **Station rankings:** only stations with at least 100 trains in the chosen period, so a tiny
+  station cannot top a list by chance.
+- **vs Germany:** how the chosen state compares with all of Germany for the same train types
+  and months.
 
 ## Ask AI chat
 
-| Term | Definition |
-| --- | --- |
-| **Answer** | The model writes one SQL query; the database computes every number; the model then words a short answer from the result rows only. |
-| **Unspecified question** | A question naming no month or train type covers all months and all train types except Bus and Other. |
-| **Declined** | The model says the data cannot answer (causes, weather, prices, the future, other countries). |
-| **Correct (evaluation)** | The model's result matches a hand-written reference query within its rounding (0.1 for one decimal), or names the same station, state, month or hour. |
-| **Tuning set** | Test questions used while writing the prompt. |
-| **Hold-out set** | Test questions written afterwards and never used to change the prompt; their score is the fair one. |
+- **How it answers:** the AI writes a database query, the database works out the numbers, and
+  the AI puts the result into words. The AI never calculates numbers itself.
+- **Declined:** the AI says the data cannot answer the question (causes, weather, prices, the
+  future, other countries).
+- **No train type or month in the question:** the answer covers all months and all train types
+  except replacement buses and "Other".
+- **Correct (evaluation):** the AI's answer matches a hand-written reference answer.
+- **Hold-out questions:** test questions written after the AI's instructions were finished and
+  never used to improve them, so their score is the fair one.
 
-Source: `src/dbp/ask/`, results in `docs/ask_eval.md`.
+*Code: `src/dbp/ask/`; results: `docs/ask_eval.md`*
