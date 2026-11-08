@@ -27,7 +27,8 @@ stations, and traces how delay builds up along each journey.
    Duisburg).
 
 Each finding holds in every one of the 12 months through Oct 2026. Method, checks and limits are in
-[docs/report_notes.md](docs/report_notes.md).
+[docs/report_notes.md](docs/report_notes.md). Every measure (on time, cancelled, delay added per stop, ...) is
+defined in [docs/definitions.md](docs/definitions.md).
 
 ## Questions the dashboard answers
 
