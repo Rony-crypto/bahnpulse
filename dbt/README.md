@@ -26,10 +26,10 @@ uv run dbt docs serve --project-dir dbt --profiles-dir dbt
 
 ## S1 modeling contract
 
-- Seed `seeds/train_type_map.csv` to map raw train/operator codes to ICE, IC/EC, RE, RB, S, Bus, or Other. Keep the raw code alongside the group so mappings remain auditable.
+- A stop's train group comes from its line name (RE1, RB26, S3) when it has one; otherwise the seed `seeds/train_type_map.csv` maps the raw train/operator code to ICE, IC/EC, RE, RB, S, Bus, or Other. The raw code is kept alongside the group so mappings stay auditable, and `assert_train_type_map_matches_lines` flags codes whose trains contradict their mapping.
 - Exclude Bus from rail punctuality. Flag/drop rows where `train_type` is blank; in the profiled files these align exactly with missing `train_number` and `delay_in_min`.
 - Use `id` as the stop-row identity. `train_line_ride_id + train_line_station_num` repeats across service dates; adding planned time still has collisions and is not a replacement for `id`.
 - Build station state by normalizing S1's eight-character EVA (leading `0`) and joining to DB StaDa data. Six historical S1 EVAs absent from current StaDa use explicit, auditable overrides. Hamburg S-Bahn analysis filters `federalState = Hamburg` and excludes line S0; station-name prefixes are not a valid state filter.
 - Treat endpoint nulls in planned arrival/departure as expected. Track change-time-without-planned-time rows separately.
-- Detect collection gaps from hourly delay/change-time fill rates, not missing planned-stop hours. The profiler currently flags hours below half the monthly median coverage for investigation.
+- Collection gaps: `agg_month_coverage` flags hours with under half the usual stop volume for that weekday and hour (24+ such hours mark a month as incomplete); `agg_hourly_coverage` keeps the delay and change-time fill rates per hour.
 - `agg_hamburg_weekly` supports historical line, station, and train-type comparisons with weekday peak (06-09, 16-19) versus off-peak buckets; line rows exclude S0.

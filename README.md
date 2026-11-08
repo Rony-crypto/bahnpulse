@@ -26,9 +26,9 @@ stations, and traces how delay builds up along each journey.
    stops but add 35% of all delay minutes (Frankfurt, Hamburg, Köln, Hannover, Stuttgart,
    Duisburg).
 
-Each finding holds in every one of the 12 months through Oct 2026. Method, checks and limits are in
-[docs/report_notes.md](docs/report_notes.md). Every measure (on time, cancelled, delay added per stop, ...) is
-defined in [docs/definitions.md](docs/definitions.md).
+Each finding holds in every one of the 12 months through Oct 2026. Method, checks and limits
+are in [docs/report_notes.md](docs/report_notes.md); every measure (on time, cancelled, delay
+added per stop, ...) is explained in plain language in [docs/definitions.md](docs/definitions.md).
 
 ## Questions the dashboard answers
 
@@ -147,7 +147,7 @@ most S-Bahn delay?").
 
 **The database computes every number, never the model.** Providers are tried in order: Groq's
 free plan (gpt-oss-120b, then Qwen 3.8 and gpt-oss-20b, each with its own daily allowance),
-then Google's Gemini and Gemma as a last resort. Code: `src/dbp/ask/`.
+then Mistral if a key is set, then Google's Gemini and Gemma as a last resort. Code: `src/dbp/ask/`.
 
 **Evaluation:** `uv run python -m dbp.ask.evaluate` scores the model against hand-written
 reference queries (`src/dbp/ask/eval_questions.yml`): 32 tuning questions used while writing
@@ -164,7 +164,7 @@ June comparison and one query that still failed after the retry. Full results:
 git clone https://github.com/Rony-crypto/bahnpulse.git
 cd bahnpulse
 uv sync
-cp .env.example .env   # DB API Marketplace keys (for station data)
+cp .env.example .env   # DB API keys (station data); a Groq key for the AI chat is optional
 uv run python -m dbp.ingest.download_s1 --start 2025-11 --end latest
 uv run python -m dbp.ingest.download_s3
 uv run dbt build --project-dir dbt --profiles-dir dbt
@@ -172,8 +172,9 @@ uv run python -m dbp.publish.export_marts
 uv run streamlit run src/dbp/bahnpulse_app.py
 ```
 
-The dbt build caps DuckDB at 4 GB of memory (set `BAHNPULSE_DUCKDB_MEMORY` to change it) and
-takes about 4 minutes on a laptop.
+The dbt build caps DuckDB at 4 GB of memory (set `BAHNPULSE_DUCKDB_MEMORY` to change it). A
+full build of 12 months takes about 11 minutes on GitHub's runner; the trip rebuilding for
+the "where delays start" marts takes most of it.
 
 | Command | What it does |
 | --- | --- |
@@ -200,7 +201,7 @@ the usual stop volume):
 | Done | Tested dbt model and monthly automation |
 | Done | Public dashboard: states, train types, cancellations, Hamburg deep dive |
 | Done | Where delays start and how they spread |
-| Done | "Ask the data": questions in English or German answered with checked SQL, evaluated |
+| Done | Ask AI chat: questions in English or German answered with checked SQL, evaluated |
 
 ## Credits and licences
 

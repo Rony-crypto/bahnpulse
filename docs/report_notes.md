@@ -44,8 +44,9 @@ stations), how does it develop along the route, and which stations add the most?
    departure lateness at *k* minus arrival lateness at *k*. Positive values add delay;
    negative values are recovered by timetable buffers.
 4. **Complete trips only for the split.** A trip counts when it runs from its true first
-   station (no planned arrival) to its true last station (no planned departure), with no
-   missing stop, no cancellation and every delay recorded: 9.1 million trips in total.
+   station (the only stop with no planned arrival) to its true last station (the only stop
+   with no planned departure), with no missing stop, no cancellation and every delay
+   recorded: 10.1 million trips in total.
 5. **Exact accounting.** For every complete trip, final lateness = lateness at the first
    station + running added + running recovered + dwell added + dwell recovered. A dbt test
    (`assert_delay_sources_add_up`) checks this every build.
@@ -58,6 +59,11 @@ stations), how does it develop along the route, and which stations add the most?
   a departure (the train continues abroad or to stops the source missed). They first broke
   the identity test for about 3% of complete trips; requiring a true first and last station
   fixed it (0 of 826,835 May trips off by even a minute).
+- **Trains that end mid-route:** in October 2026 a few trains ended at a station and ran on
+  under the same ride id, so a stop in the middle had no planned departure. The identity test
+  caught it (166 of 886,191 trips did not add up) and stopped that month's publish. A trip now
+  counts as complete only if the missing planned times are at its first and last stop; this
+  excludes 230 October trips (0.03%) and every month adds up again.
 - **Processing month by month:** rebuilding trips over the whole history at once spilled
   40 GB to disk. Each month is now rebuilt and aggregated on its own (about 5 seconds).
   Trips running over midnight at a month end are split, a negligible share.
@@ -65,7 +71,8 @@ stations), how does it develop along the route, and which stations add the most?
   and one month took 305 seconds instead of 5. The dbt profile caps DuckDB at 4 GB
   (10 GB on the GitHub runner).
 - **Unit tests** (`tests/test_delay_spread.py`) cover the split, two days of the same ride,
-  early arrivals, missing stops, trips cut off before their last station and route position.
+  early arrivals, missing stops, trips cut off before their last station, trips ending
+  mid-route and route position.
 
 ### Findings
 
@@ -211,6 +218,9 @@ S-Bahn (for HLB the difference is only 5 versus 4 minutes between stops).
 
 ## Definitions
 
+Plain-language explanations of every measure are in [definitions.md](definitions.md); the
+notes below record the choices behind them.
+
 - **On time** means an arrival less than 6 minutes late (DB definition). Arrival delay is
   the actual minus the planned arrival time. The source's own `delay_in_min` column is the
   *departure* delay at every stop except the last (it matched departure times on 100% of rows
@@ -304,7 +314,9 @@ the trend tooltip marks them as incomplete months.
 - History runs through the latest monthly S1 release. Each run's time and dbt test count are
   recorded in `data/published/run_status.json`.
 - All marts are built and tested with dbt before they are exported (see `dbt/models/schema.yml`
-  and `dbt/tests/`).
+  and `dbt/tests/`). If a test fails, nothing is published and the app keeps the last good
+  month; GitHub emails the failure.
+- Every push runs the `ci` workflow: lint, unit tests, `dbt parse` and a secret scan.
 
 ## Ask the data: AI questions with checked SQL
 
@@ -337,7 +349,8 @@ model then phrases a short answer from the result rows, and the chat shows the S
 | Mistral | The large free "Experiment" plan was replaced in August 2026 by $10 of credit a month |
 | **Groq** (chosen) | 2–3 s per question; about 40 questions a day per model (200,000 tokens a day, about 4,500 per question); three models with separate allowances |
 
-The app tries Groq's gpt-oss-120b, then Qwen 3.8 and gpt-oss-20b, then Gemini and Gemma. A
+The app tries Groq's gpt-oss-120b, then Qwen 3.8 and gpt-oss-20b, then Mistral (if a key is
+set), then Gemini and Gemma. A
 short rate limit (seconds) is waited out; a long one (daily allowance used up) moves to the
 next model immediately, so visitors never wait minutes.
 
