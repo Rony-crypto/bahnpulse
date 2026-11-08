@@ -40,23 +40,55 @@ defined in [docs/definitions.md](docs/definitions.md).
 
 ## How it works
 
-```
-S1 stop history (monthly Parquet) ─┐
-S3 station data (DB StaDa) ────────┼─> dbt on DuckDB: staging -> star schema -> marts + tests
-S4 state shapes (Natural Earth) ───┘                         │
-                                                             ▼
-                          aggregate Parquet marts (data/published) ─> Streamlit dashboard
+```mermaid
+flowchart TB
+  subgraph Sources
+    S1["S1 stop history<br/>monthly Parquet, Hugging Face"]
+    S3["S3 station data<br/>DB API Marketplace"]
+    S4["S4 state shapes<br/>Natural Earth"]
+  end
+  subgraph Pipeline["GitHub Actions, monthly"]
+    ING["Ingest<br/>dbp.ingest"]
+    DBT["dbt on DuckDB<br/>staging → intermediate →<br/>star schema → marts<br/>48 data tests"]
+    PUB["Published marts<br/>Parquet in data/published"]
+  end
+  subgraph App["Streamlit Community Cloud"]
+    DASH["Dashboard<br/>Germany · Hamburg"]
+    CHAT["Ask AI chat"]
+    LLM["LLM (Groq)<br/>writes SQL, words the answer"]
+    SBX["Read-only DuckDB sandbox"]
+  end
+  S1 --> ING
+  S3 --> ING
+  ING --> DBT --> PUB
+  PUB --> DASH
+  S4 --> DASH
+  DASH --- CHAT
+  CHAT --> LLM
+  LLM -- "SQL" --> SBX
+  PUB --> SBX
+  SBX -- "result rows" --> LLM
 ```
 
+- **Ingest:** each month the raw stop history (S1, about 600 MB per month) and DB station data
+  (S3) are downloaded (`src/dbp/ingest/`).
 - **dbt + DuckDB:** staging and classification views, a stop-event fact table with station,
   train type, line, date and hour dimensions, and aggregate marts for the dashboard. The
   "where do delays start" marts are dbt Python models that rebuild trips one month at a time
-  (`src/dbp/transform/delay_spread.py`).
+  (`src/dbp/transform/delay_spread.py`). Every model and column is documented in
+  `dbt/models/schema.yml`.
 - **Tests:** 48 dbt data tests (keys, accepted values, full weeks, delay buckets adding up,
-  delay sources adding up to the final delay) and 68 Python unit tests (`uv run pytest`),
+  delay sources adding up to the final delay) and 69 Python unit tests (`uv run pytest`),
   including the AI layer's sandbox, fallback and scoring (no API key needed).
 - **Automation:** the `monthly_history` GitHub workflow checks daily for a new source month,
-  rebuilds, tests and publishes the marts.
+  then rebuilds, tests and publishes the marts; nothing is published if a test fails. The `ci`
+  workflow runs lint, unit tests, `dbt parse` and a secret scan on every push.
+- **Serving:** the dashboard reads only the small published marts (about 4 MB), so it runs on
+  Streamlit Community Cloud's free tier and redeploys on every push.
+- **Live collector (tested experiment):** `collect_hubs` fetched DB's real-time feed for six
+  Hamburg hubs every hour. The test showed hourly snapshots catch every train and that delay
+  forecasts read before arrival are too optimistic (91% vs 74% on time); the live layer is
+  deferred. Findings: [docs/report_notes.md](docs/report_notes.md#live-hub-data-deferred).
 
 ### Data decisions worth knowing
 
@@ -79,7 +111,7 @@ S4 state shapes (Natural Earth) ───┘                         │
 ```
 bahnpulse/
 ├── src/dbp/
-│   ├── ingest/        # download raw data: S1 stop history, S3 station data (DB API)
+│   ├── ingest/        # download raw data (S1, S3 via DB API), live hub collector (experiment)
 │   ├── profile/       # profiling of the raw stop data
 │   ├── transform/     # trip rebuilding for the "where delays start" marts
 │   ├── publish/       # new-month check, export of marts for the app
