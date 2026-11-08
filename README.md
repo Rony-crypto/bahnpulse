@@ -41,14 +41,13 @@ added per stop, ...) is explained in plain language in [docs/definitions.md](doc
 ## How it works
 
 ```mermaid
-flowchart LR
-  SRC["Raw data<br/>stops + stations"] -->|monthly| DBT["dbt + DuckDB<br/>48 tests"]
-  DBT --> MARTS[("Published<br/>marts")]
+%%{init: {"flowchart": {"nodeSpacing": 30, "rankSpacing": 30}}}%%
+flowchart TB
+  SRC["Raw data · monthly"] --> DBT["dbt + DuckDB · 48 tests"] --> MARTS[("Published marts")]
   MARTS --> DASH["Dashboard"]
-  MARTS --> SBX["Read-only<br/>SQL sandbox"]
-  CHAT["Ask AI chat"] -->|question| LLM["LLM (Groq)<br/>writes SQL"]
-  LLM -->|SQL| SBX
-  SBX -->|numbers| CHAT
+  MARTS --> SBX["Read-only SQL sandbox"]
+  CHAT["Ask AI chat<br/>LLM writes SQL"] -->|SQL| SBX
+  SBX -.->|numbers| CHAT
 ```
 
 - **Ingest:** each month the raw stop history (S1, about 600 MB per month) and DB station data
